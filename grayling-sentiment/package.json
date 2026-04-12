@@ -2,6 +2,7 @@
   "name": "grayling-sentiment-analyser",
   "version": "1.0.0",
   "description": "Grayling AI Public Sentiment Analyser powered by NVIDIA Nemotron",
+  "type": "module",
   "scripts": {
     "dev": "vercel dev"
   },
