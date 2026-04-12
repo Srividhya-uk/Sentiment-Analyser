@@ -253,7 +253,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const resendKey = process.env.RESEND_API_KEY || 're_X4j4wzMK_NoFSY7CzADJv1DpAwzh1chRd';
+  const resendKey = process.env.RESEND_API_KEY;
+  if (!resendKey) {
+    return res.status(500).json({ error: 'Email service not configured' });
+  }
 
   const { contact, result } = req.body;
 
