@@ -12,9 +12,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.NVIDIA_API_KEY || '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';
+  const apiKey = process.env.TOGETHER_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'API key not configured' });
+  }
 
-  const { query, model } = req.body;
+  const { query } = req.body;
   if (!query) {
     return res.status(400).json({ error: 'No query provided' });
   }
@@ -53,14 +56,14 @@ Hard rules:
 - summary_note must read like an editor's note, not a report conclusion`;
 
   try {
-    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+    const response = await fetch('https://api.together.xyz/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: 'nvidia/nemotron-4-340b-instruct',
+        model: 'meta-llama/Llama-3.3-70B-Instruct-Turbo',
         messages: [
           {
             role: 'system',
@@ -79,13 +82,12 @@ Hard rules:
 
     if (!response.ok) {
       const err = await response.text();
-      return res.status(response.status).json({ error: 'NVIDIA API error', detail: err });
+      return res.status(response.status).json({ error: 'Together AI API error', detail: err });
     }
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
 
-    // Strip any markdown fences if model adds them
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
 
@@ -94,8 +96,6 @@ Hard rules:
     }
 
     const result = JSON.parse(jsonMatch[0]);
-
-    // CORS header so the browser frontend can call this
     return res.status(200).json(result);
 
   } catch (err) {
