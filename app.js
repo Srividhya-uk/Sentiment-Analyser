@@ -1,5 +1,16 @@
-
 document.addEventListener('DOMContentLoaded', function() {
+
+// ── SAFE TEXT HELPER ──
+function safe(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let lastResult = null;
 
 // ── GRAYLING HARDCODED RESULT ──
@@ -198,7 +209,7 @@ async function run(query) {
 function render(r) {
   document.getElementById('entityKicker').textContent =
     (r.entity_type || 'Entity') + ' · Public Sentiment Report';
-  document.getElementById('entityName').textContent = r.entity || '...';
+  document.getElementById('entityName').textContent = r.entity || '';
 
   const sent = r.overall_sentiment || 'neutral';
   const icons = { positive: '↑', negative: '↓', neutral: '→' };
@@ -234,7 +245,7 @@ function render(r) {
     negCell.appendChild(lock);
   }
 
-  document.getElementById('editHeadline').textContent = r.editorial_headline || '...';
+  document.getElementById('editHeadline').textContent = r.editorial_headline || '';
   document.getElementById('editBody').innerHTML = r.editorial_body || '...';
 
   // Voices — show positive/neutral only
@@ -242,11 +253,11 @@ function render(r) {
   document.getElementById('voicesGrid').innerHTML = publicVoices.map(v => `
     <div class="voice-card">
       <div class="voice-top">
-        <span class="voice-source">${v.source}</span>
-        <span class="voice-badge ${v.sentiment}">${v.sentiment}</span>
+        <span class="voice-source">${safe(v.source)}</span>
+        <span class="voice-badge ${safe(v.sentiment)}">${safe(v.sentiment)}</span>
       </div>
-      <div class="voice-quote">${v.quote}</div>
-      <div class="voice-audience">Audience: ${v.audience}</div>
+      <div class="voice-quote">${safe(v.quote)}</div>
+      <div class="voice-audience">Audience: ${safe(v.audience)}</div>
     </div>
   `).join('') + `
     <div class="voice-card locked-card">
@@ -261,11 +272,13 @@ function render(r) {
 
   // Themes — positive only, negative locked
   document.getElementById('posThemes').innerHTML =
-    (r.positive_themes || []).map(t => `<li>${t}</li>`).join('');
+    (r.positive_themes || []).map(t => `<li>${safe(t)}</li>`).join('');
   document.getElementById('negThemes').innerHTML =
-    (r.negative_themes || []).map(() =>
-      `<li style="color:var(--rule)">&#128274; Included in full report</li>`
-    ).join('') || `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
+    (r.negative_themes || []).length > 0
+      ? (r.negative_themes || []).map(() =>
+          `<li style="color:var(--rule)">&#128274; Included in full report</li>`
+        ).join('')
+      : `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
 
   // Confidence bars
   const cb = document.getElementById('confBars');
@@ -288,7 +301,7 @@ function render(r) {
     : 'Fragmented discourse: no clear majority position';
 
   document.getElementById('summaryQuote').innerHTML =
-    `<span style="font-size:2.5rem;line-height:0.4;color:var(--rule);display:block;margin-bottom:0.5rem;font-style:normal;">"</span>${r.summary_note||'...'}`;
+    `<span style="font-size:2.5rem;line-height:0.4;color:var(--rule);display:block;margin-bottom:0.5rem;font-style:normal;">"</span>${safe(r.summary_note)}`;
 
   document.getElementById('result').classList.add('on');
 }
