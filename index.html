@@ -1135,8 +1135,49 @@ footer {
   <div class="footer-note">Powered by NVIDIA Nemotron · 2026</div>
 </footer>
 
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">&#x2715;</button>
+    <div class="modal-logo">Grayling</div>
+    <div class="modal-title">Request Your Full Sentiment Report</div>
+    <div class="modal-sub">Complete the form and Grayling will send you the full intelligence report — including negative signals, source breakdown and strategic insight.</div>
+    <div class="modal-form">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label" for="fName">Full Name</label>
+          <input class="form-input" id="fName" type="text" placeholder="Jane Smith">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="fCompany">Company</label>
+          <input class="form-input" id="fCompany" type="text" placeholder="Acme Corp">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label" for="fTitle">Job Title</label>
+          <input class="form-input" id="fTitle" type="text" placeholder="Head of Communications">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="fEmail">Work Email</label>
+          <input class="form-input" id="fEmail" type="email" placeholder="jane@company.com">
+        </div>
+      </div>
+      <div class="form-error" id="formError"></div>
+      <button class="btn-submit" id="submitForm">Send My Report</button>
+    </div>
+    <div class="modal-success" id="modalSuccess">
+      <div class="success-icon">&#10003;</div>
+      <div class="success-title">Report on its way.</div>
+      <div class="success-sub">Grayling will be in touch shortly with your full sentiment intelligence report.</div>
+    </div>
+    <div class="modal-footer-line">Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.</div>
+  </div>
+</div>
+
+
 <script>
-let sessionCount = 0;
+document.addEventListener('DOMContentLoaded', function() {
 let lastResult = null;
 
 // ── GRAYLING HARDCODED RESULT ──
@@ -1431,47 +1472,9 @@ function render(r) {
 }
 
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
-</script>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay">
-  <div class="modal">
-    <button class="modal-close" id="modalClose">&#x2715;</button>
-    <div class="modal-logo">Grayling</div>
-    <div class="modal-title">Request Your Full Sentiment Report</div>
-    <div class="modal-sub">Complete the form and Grayling will send you the full intelligence report — including negative signals, source breakdown and strategic insight.</div>
-    <div class="modal-form">
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label" for="fName">Full Name</label>
-          <input class="form-input" id="fName" type="text" placeholder="Jane Smith">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="fCompany">Company</label>
-          <input class="form-input" id="fCompany" type="text" placeholder="Acme Corp">
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label" for="fTitle">Job Title</label>
-          <input class="form-input" id="fTitle" type="text" placeholder="Head of Communications">
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="fEmail">Work Email</label>
-          <input class="form-input" id="fEmail" type="email" placeholder="jane@company.com">
-        </div>
-      </div>
-      <div class="form-error" id="formError"></div>
-      <button class="btn-submit" id="submitForm">Send My Report</button>
-    </div>
-    <div class="modal-success" id="modalSuccess">
-      <div class="success-icon">&#10003;</div>
-      <div class="success-title">Report on its way.</div>
-      <div class="success-sub">Grayling will be in touch shortly with your full sentiment intelligence report.</div>
-    </div>
-    <div class="modal-footer-line">Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.</div>
-  </div>
-</div>
+}); // end DOMContentLoaded
+</script>
 
 </body>
 </html>
