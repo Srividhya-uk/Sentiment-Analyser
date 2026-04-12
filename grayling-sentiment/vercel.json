@@ -1,8 +1,0 @@
-{
-  "version": 2,
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/analyse", "destination": "/api/analyse.js" },
-    { "source": "/api/contact", "destination": "/api/contact.js" }
-  ]
-}
