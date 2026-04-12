@@ -10,6 +10,7 @@ function safe(str) {
 }
 
 let lastResult = null;
+let sessionCount = 0;
 
 // ── GRAYLING HARDCODED RESULT ──
 const GRAYLING_RESULT = {
