@@ -1,268 +1,242 @@
-import PDFDocument from 'pdfkit';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { Resend } from 'resend';
 
-// Grayling brand colours
-const NAVY   = '#0F294C';
-const BLUE   = '#1a73e8';
-const BLACK  = '#0a0a0a';
-const MID    = '#6b6b68';
-const POS    = '#1a5c3a';
-const NEG    = '#7a1a1a';
-const NEU    = '#1a3a5c';
-const RULE   = '#d8d5ce';
-const WHITE  = '#ffffff';
+// Grayling brand colours as rgb(0-1)
+const NAVY   = rgb(0.059, 0.161, 0.298);  // #0F294C
+const BLUE   = rgb(0.102, 0.451, 0.910);  // #1a73e8
+const WHITE  = rgb(1, 1, 1);
+const BLACK  = rgb(0.039, 0.039, 0.039);  // #0a0a0a
+const MID    = rgb(0.420, 0.420, 0.408);  // #6b6b68
+const SILVER = rgb(0.761, 0.769, 0.753);  // #c2c4c0
+const POS    = rgb(0.102, 0.361, 0.227);  // #1a5c3a
+const NEG    = rgb(0.478, 0.102, 0.102);  // #7a1a1a
+const NEU    = rgb(0.102, 0.227, 0.361);  // #1a3a5c
+const RULE   = rgb(0.847, 0.835, 0.808);  // #d8d5ce
 
-// hex to rgb array helper
-function hex(h) {
-  const r = parseInt(h.slice(1,3),16);
-  const g = parseInt(h.slice(3,5),16);
-  const b = parseInt(h.slice(5,7),16);
-  return [r,g,b];
+function sentimentColor(s) {
+  return s === 'positive' ? POS : s === 'negative' ? NEG : NEU;
 }
 
-function buildPDF(contact, result) {
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 0 });
-    const chunks = [];
-    doc.on('data', c => chunks.push(c));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+// Draw a filled rectangle
+function drawRect(page, x, y, w, h, color) {
+  page.drawRectangle({ x, y, width: w, height: h, color });
+}
 
-    const W = doc.page.width;   // 595
-    const H = doc.page.height;  // 842
-    const M = 48;               // margin
+// Draw text with options
+function drawText(page, text, x, y, font, size, color, opts = {}) {
+  page.drawText(String(text), { x, y, font, size, color, ...opts });
+}
 
-    // ── HEADER BAND ──
-    doc.rect(0, 0, W, 120).fill(hex(NAVY));
+// Wrap text into lines that fit within maxWidth
+function wrapText(text, font, size, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const test = current ? current + ' ' + word : word;
+    const w = font.widthOfTextAtSize(test, size);
+    if (w > maxWidth && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
 
-    // Grayling wordmark
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(13)
-       .text('GRAYLING', M, 36, { characterSpacing: 4 });
+async function buildPDF(contact, result) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595, 842]); // A4
 
-    // Report type
-    doc.fillColor(hex(BLUE)).font('Helvetica').fontSize(7)
-       .text('AI SENTIMENT INTELLIGENCE REPORT', M, 54, { characterSpacing: 2 });
+  const boldFont   = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regFont    = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const obFont     = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-    // Confidential tag top right
-    doc.fillColor(WHITE).font('Helvetica').fontSize(7)
-       .text('CONFIDENTIAL', W - M - 80, 36, { characterSpacing: 2 });
+  const W = 595;
+  const H = 842;
+  const M = 48; // margin
+  const CW = W - M * 2; // content width
 
-    // Date
-    const dateStr = new Date().toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'long', year: 'numeric'
-    });
-    doc.fillColor(hex(RULE)).font('Helvetica').fontSize(7)
-       .text(dateStr, W - M - 80, 50);
+  // pdf-lib y=0 is bottom-left, so we work from top down
+  // Helper: convert top-down y to pdf-lib y
+  const py = (topY) => H - topY;
 
-    // Entity name large
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(28)
-       .text(result.entity.toUpperCase(), M, 72, { characterSpacing: 1 });
+  // ── HEADER BAND ──
+  drawRect(page, 0, py(120), W, 120, NAVY);
 
-    // Entity type small
-    doc.fillColor(hex(BLUE)).font('Helvetica').fontSize(8)
-       .text(result.entity_type.toUpperCase(), M, 105, { characterSpacing: 2 });
+  // Grayling wordmark
+  drawText(page, 'GRAYLING', M, py(50), boldFont, 13, WHITE);
+  drawText(page, 'AI SENTIMENT INTELLIGENCE REPORT', M, py(64), regFont, 7, BLUE);
 
-    // ── OVERALL VERDICT BAND ──
-    const sentCol = result.overall_sentiment === 'positive' ? POS
-                  : result.overall_sentiment === 'negative' ? NEG : NEU;
+  // Confidential + date top right
+  const dateStr = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
+  drawText(page, 'CONFIDENTIAL', W - M - 75, py(50), boldFont, 7, WHITE);
+  drawText(page, dateStr, W - M - 75, py(62), regFont, 7, SILVER);
 
-    doc.rect(0, 120, W, 56).fill(hex(sentCol));
+  // Entity name
+  const entityText = (result.entity || '').toUpperCase();
+  drawText(page, entityText, M, py(96), boldFont, 24, WHITE);
+  drawText(page, (result.entity_type || '').toUpperCase(), M, py(114), regFont, 7, BLUE);
 
-    const sentLabel = result.overall_sentiment.toUpperCase();
-    const sentIcon  = result.overall_sentiment === 'positive' ? '\u2191'
-                    : result.overall_sentiment === 'negative' ? '\u2193' : '\u2192';
+  // ── VERDICT BAND ──
+  const sentCol = sentimentColor(result.overall_sentiment);
+  drawRect(page, 0, py(176), W, 56, sentCol);
 
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(22)
-       .text(`${sentIcon}  ${sentLabel}`, M, 133);
+  const sentIcon = result.overall_sentiment === 'positive' ? '\u2191'
+                 : result.overall_sentiment === 'negative' ? '\u2193' : '\u2192';
+  const sentLabel = (result.overall_sentiment || '').toUpperCase();
+  drawText(page, `${sentIcon}  ${sentLabel}`, M, py(152), boldFont, 20, WHITE);
+  drawText(page, `${result.confidence}% confidence`, M + 140, py(158), regFont, 9, WHITE);
 
-    doc.fillColor(WHITE).font('Helvetica').fontSize(9)
-       .text(`${result.confidence}% confidence`, M + 130, 140);
+  // ── SCORE STRIP ──
+  const stripTop = 176;
+  const cellW = Math.floor(W / 3);
+  const scores = [
+    { label: 'POSITIVE SIGNAL', val: result.positive_score, col: POS },
+    { label: 'NEGATIVE SIGNAL', val: result.negative_score, col: NEG },
+    { label: 'NEUTRAL SIGNAL',  val: result.neutral_score,  col: NEU },
+  ];
 
-    // ── SCORE STRIP ──
-    const stripY = 176;
-    const cellW  = W / 3;
+  scores.forEach((s, i) => {
+    const x = i * cellW;
+    const bg = i % 2 === 0 ? rgb(0.961, 0.953, 0.933) : rgb(0.933, 0.922, 0.875);
+    drawRect(page, x, py(stripTop + 70), cellW, 70, bg);
 
-    const scores = [
-      { label: 'POSITIVE SIGNAL', val: result.positive_score, col: POS },
-      { label: 'NEGATIVE SIGNAL', val: result.negative_score, col: NEG },
-      { label: 'NEUTRAL SIGNAL',  val: result.neutral_score,  col: NEU },
-    ];
+    // Score number
+    drawText(page, `${Math.round(s.val)}%`, x + 16, py(stripTop + 36), boldFont, 24, s.col);
+    // Label
+    drawText(page, s.label, x + 16, py(stripTop + 54), regFont, 6, MID);
+    // Bar track
+    drawRect(page, x + 16, py(stripTop + 66), cellW - 32, 1, RULE);
+    // Bar fill
+    const fillW = Math.round(((cellW - 32) * s.val) / 100);
+    if (fillW > 0) drawRect(page, x + 16, py(stripTop + 66), fillW, 1.5, s.col);
 
-    scores.forEach((s, i) => {
-      const x = i * cellW;
-      // cell bg alternate
-      doc.rect(x, stripY, cellW, 70)
-         .fill(i % 2 === 0 ? hex('#f5f3ee') : hex('#eee9df'));
+    // Dividers
+    if (i > 0) drawRect(page, x, py(stripTop + 70), 0.5, 70, RULE);
+  });
 
-      // score number
-      doc.fillColor(hex(s.col)).font('Helvetica-Bold').fontSize(28)
-         .text(`${s.val}%`, x + 16, stripY + 10, { width: cellW - 32 });
+  // ── EDITORIAL VERDICT ──
+  let curY = stripTop + 86;
 
-      // label
-      doc.fillColor(hex(MID)).font('Helvetica').fontSize(6.5)
-         .text(s.label, x + 16, stripY + 46, { characterSpacing: 1.5, width: cellW - 32 });
+  drawText(page, 'EDITORIAL VERDICT', M, py(curY + 10), boldFont, 6.5, BLUE);
+  drawRect(page, M, py(curY + 20), CW, 0.5, RULE);
+  curY += 28;
 
-      // bar track
-      doc.rect(x + 16, stripY + 60, cellW - 32, 1).fill(hex(RULE));
-      // bar fill
-      const fillW = Math.round(((cellW - 32) * s.val) / 100);
-      doc.rect(x + 16, stripY + 60, fillW, 1).fill(hex(s.col));
-    });
+  // Headline (wrapped)
+  const headLines = wrapText(result.editorial_headline || '', boldFont, 13, CW);
+  headLines.forEach(line => {
+    drawText(page, line, M, py(curY + 14), boldFont, 13, BLACK);
+    curY += 18;
+  });
+  curY += 6;
 
-    // vertical dividers
-    doc.rect(cellW,     stripY, 0.5, 70).fill(hex(RULE));
-    doc.rect(cellW * 2, stripY, 0.5, 70).fill(hex(RULE));
+  // Body text (wrapped, strip HTML tags)
+  const bodyClean = (result.editorial_body || '').replace(/<[^>]+>/g, '');
+  const bodyLines = wrapText(bodyClean, regFont, 9, CW);
+  bodyLines.forEach(line => {
+    drawText(page, line, M, py(curY + 10), regFont, 9, MID);
+    curY += 14;
+  });
+  curY += 20;
 
-    // ── EDITORIAL VERDICT ──
-    let y = stripY + 86;
+  // ── SOURCE VOICES ──
+  drawText(page, 'SOURCE VOICES', M, py(curY + 10), boldFont, 6.5, BLUE);
+  drawRect(page, M, py(curY + 20), CW, 0.5, RULE);
+  curY += 28;
 
-    doc.fillColor(hex(BLUE)).font('Helvetica-Bold').fontSize(6.5)
-       .text('EDITORIAL VERDICT', M, y, { characterSpacing: 2 });
+  for (const v of (result.source_voices || [])) {
+    if (curY > H - 180) break; // safety cutoff
 
-    doc.rect(M, y + 14, W - M * 2, 0.5).fill(hex(RULE));
-    y += 22;
+    const vcol = sentimentColor(v.sentiment);
+    drawText(page, (v.source || '').toUpperCase(), M, py(curY + 10), regFont, 7, MID);
 
-    doc.fillColor(hex(BLACK)).font('Helvetica-Bold').fontSize(13)
-       .text(result.editorial_headline, M, y, { width: W - M * 2 });
+    // Badge
+    const badgeLabel = (v.sentiment || '').toUpperCase();
+    drawRect(page, W - M - 55, py(curY + 12), 55, 13, WHITE);
+    page.drawRectangle({ x: W - M - 55, y: py(curY + 12), width: 55, height: 13, borderColor: vcol, borderWidth: 0.8 });
+    drawText(page, badgeLabel, W - M - 42, py(curY + 4), boldFont, 6, vcol);
+    curY += 14;
 
-    y += doc.heightOfString(result.editorial_headline, { width: W - M * 2, fontSize: 13 }) + 10;
-
-    const editBodyClean = (result.editorial_body || '').replace(/<[^>]+>/g, '');
-    doc.fillColor(hex(MID)).font('Helvetica').fontSize(9).lineGap(3)
-       .text(editBodyClean, M, y, { width: W - M * 2 });
-
-    y += doc.heightOfString(editBodyClean, { width: W - M * 2, fontSize: 9 }) + 24;
-
-    // ── SOURCE VOICES ──
-    doc.fillColor(hex(BLUE)).font('Helvetica-Bold').fontSize(6.5)
-       .text('SOURCE VOICES', M, y, { characterSpacing: 2 });
-    doc.rect(M, y + 14, W - M * 2, 0.5).fill(hex(RULE));
-    y += 22;
-
-    const voices = result.source_voices || [];
-    voices.forEach((v, i) => {
-      if (y > H - 160) { doc.addPage(); y = M; }
-
-      const vcol = v.sentiment === 'positive' ? POS
-                 : v.sentiment === 'negative' ? NEG : NEU;
-
-      // source name + badge
-      doc.fillColor(hex(MID)).font('Helvetica').fontSize(7)
-         .text(v.source.toUpperCase(), M, y, { characterSpacing: 1.2 });
-
-      const badgeLabel = v.sentiment.toUpperCase();
-      const badgeX = W - M - 50;
-      doc.rect(badgeX, y - 2, 50, 12).stroke(hex(vcol));
-      doc.fillColor(hex(vcol)).font('Helvetica-Bold').fontSize(6)
-         .text(badgeLabel, badgeX + 2, y + 1, { width: 46, align: 'center', characterSpacing: 1 });
-
-      y += 14;
-      doc.fillColor(hex(BLACK)).font('Helvetica-Oblique').fontSize(8.5).lineGap(2)
-         .text(`"${v.quote}"`, M, y, { width: W - M * 2 - 60 });
-
-      y += doc.heightOfString(`"${v.quote}"`, { width: W - M * 2 - 60, fontSize: 8.5 }) + 4;
-
-      doc.fillColor(hex(RULE)).font('Helvetica').fontSize(6.5)
-         .text(`Audience: ${v.audience}`, M, y);
-
-      y += 16;
-      if (i < voices.length - 1) {
-        doc.rect(M, y, W - M * 2, 0.5).fill(hex('#e8e5de'));
-        y += 10;
-      }
+    const quoteText = `"${v.quote || ''}"`;
+    const quoteLines = wrapText(quoteText, obFont, 8.5, CW - 60);
+    quoteLines.forEach(line => {
+      drawText(page, line, M, py(curY + 10), obFont, 8.5, BLACK);
+      curY += 13;
     });
 
-    y += 16;
+    drawText(page, `Audience: ${v.audience || ''}`, M, py(curY + 8), regFont, 6.5, SILVER);
+    curY += 14;
+    drawRect(page, M, py(curY), CW, 0.5, rgb(0.910, 0.898, 0.871));
+    curY += 10;
+  }
 
-    // ── THEMES ──
-    if (y > H - 200) { doc.addPage(); y = M; }
+  curY += 10;
 
-    // Positive themes
-    const colW = (W - M * 2 - 16) / 2;
+  // ── THEMES ──
+  if (curY < H - 160) {
+    drawText(page, 'KEY THEMES', M, py(curY + 10), boldFont, 6.5, BLUE);
+    drawRect(page, M, py(curY + 20), CW, 0.5, RULE);
+    curY += 28;
 
-    doc.fillColor(hex(BLUE)).font('Helvetica-Bold').fontSize(6.5)
-       .text('KEY THEMES', M, y, { characterSpacing: 2 });
-    doc.rect(M, y + 14, W - M * 2, 0.5).fill(hex(RULE));
-    y += 22;
+    const colW = Math.floor(CW / 2) - 8;
 
-    // Positive column header
-    doc.fillColor(hex(POS)).font('Helvetica-Bold').fontSize(7)
-       .text('POSITIVE DRIVERS', M, y, { characterSpacing: 1.5 });
-    doc.fillColor(hex(NEG)).font('Helvetica-Bold').fontSize(7)
-       .text('NEGATIVE DRIVERS', M + colW + 16, y, { characterSpacing: 1.5 });
-    y += 14;
+    drawText(page, 'POSITIVE DRIVERS', M, py(curY + 10), boldFont, 7, POS);
+    drawText(page, 'NEGATIVE DRIVERS', M + colW + 16, py(curY + 10), boldFont, 7, NEG);
+    curY += 18;
 
     const posT = result.positive_themes || [];
     const negT = result.negative_themes || [];
     const maxT = Math.max(posT.length, negT.length);
 
     for (let i = 0; i < maxT; i++) {
-      if (y > H - 120) { doc.addPage(); y = M; }
-
-      if (posT[i]) {
-        doc.fillColor(hex(BLACK)).font('Helvetica').fontSize(8.5)
-           .text(`+  ${posT[i]}`, M, y, { width: colW });
-      }
-      if (negT[i]) {
-        doc.fillColor(hex(BLACK)).font('Helvetica').fontSize(8.5)
-           .text(`-  ${negT[i]}`, M + colW + 16, y, { width: colW });
-      }
-      y += 18;
+      if (curY > H - 120) break;
+      if (posT[i]) drawText(page, `+  ${posT[i]}`, M, py(curY + 10), regFont, 8.5, BLACK);
+      if (negT[i]) drawText(page, `-  ${negT[i]}`, M + colW + 16, py(curY + 10), regFont, 8.5, BLACK);
+      curY += 16;
     }
+    curY += 14;
+  }
 
-    y += 16;
+  // ── SUMMARY NOTE ──
+  if (curY < H - 100) {
+    drawRect(page, M, py(curY), CW, 0.5, RULE);
+    curY += 14;
+    const sumLines = wrapText(`"${result.summary_note || ''}"`, obFont, 10, CW);
+    sumLines.forEach(line => {
+      drawText(page, line, M, py(curY + 12), obFont, 10, MID);
+      curY += 16;
+    });
+    curY += 10;
+  }
 
-    // ── SUMMARY NOTE ──
-    if (y > H - 120) { doc.addPage(); y = M; }
+  // ── CONTACT DETAILS ──
+  if (curY < H - 100) {
+    drawRect(page, M, py(curY), CW, 0.5, RULE);
+    curY += 14;
+    drawText(page, 'REQUESTED BY', M, py(curY + 10), boldFont, 6.5, BLUE);
+    curY += 16;
+    drawText(page, contact.name || '', M, py(curY + 10), boldFont, 9, BLACK);
+    curY += 14;
+    drawText(page, `${contact.title || ''}, ${contact.company || ''}`, M, py(curY + 10), regFont, 8.5, MID);
+    curY += 13;
+    drawText(page, contact.email || '', M, py(curY + 10), regFont, 8.5, MID);
+  }
 
-    doc.rect(M, y, W - M * 2, 0.5).fill(hex(RULE));
-    y += 16;
-
-    doc.fillColor(hex(MID)).font('Helvetica-Oblique').fontSize(10).lineGap(3)
-       .text(`"${result.summary_note}"`, M, y, { width: W - M * 2 });
-
-    y += doc.heightOfString(`"${result.summary_note}"`, { width: W - M * 2, fontSize: 10 }) + 24;
-
-    // ── CONTACT DETAILS ──
-    if (y > H - 130) { doc.addPage(); y = M; }
-
-    doc.rect(M, y, W - M * 2, 0.5).fill(hex(RULE));
-    y += 16;
-
-    doc.fillColor(hex(BLUE)).font('Helvetica-Bold').fontSize(6.5)
-       .text('REQUESTED BY', M, y, { characterSpacing: 2 });
-    y += 14;
-
-    doc.fillColor(hex(BLACK)).font('Helvetica-Bold').fontSize(9)
-       .text(contact.name, M, y);
-    y += 13;
-
-    doc.fillColor(hex(MID)).font('Helvetica').fontSize(8.5)
-       .text(`${contact.title}, ${contact.company}`, M, y);
-    y += 12;
-
-    doc.fillColor(hex(MID)).font('Helvetica').fontSize(8.5)
-       .text(contact.email, M, y);
-
-    // ── FOOTER BAND ──
-    const footY = H - 60;
-    doc.rect(0, footY, W, 60).fill(hex(NAVY));
-
-    doc.fillColor(WHITE).font('Helvetica-Bold').fontSize(8)
-       .text('GRAYLING', M, footY + 14, { characterSpacing: 3 });
-
-    doc.fillColor(hex(BLUE)).font('Helvetica').fontSize(7.5).lineGap(2)
-       .text(
-         'Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.',
-         M, footY + 28,
-         { width: W - M * 2 - 80 }
-       );
-
-    doc.fillColor(hex(RULE)).font('Helvetica').fontSize(6.5)
-       .text('www.grayling.com', W - M - 80, footY + 36);
-
-    doc.end();
+  // ── FOOTER BAND ──
+  drawRect(page, 0, 0, W, 56, NAVY);
+  drawText(page, 'GRAYLING', M, 36, boldFont, 8, WHITE);
+  const footerText = 'Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.';
+  const footerLines = wrapText(footerText, regFont, 7.5, CW - 80);
+  footerLines.forEach((line, i) => {
+    drawText(page, line, M, 24 - i * 11, regFont, 7.5, BLUE);
   });
+  drawText(page, 'www.grayling.com', W - M - 80, 18, regFont, 6.5, SILVER);
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
 }
 
 export default async function handler(req, res) {
@@ -279,7 +253,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Generate PDF
     const pdfBuffer = await buildPDF(contact, result);
     const pdfBase64 = pdfBuffer.toString('base64');
 
@@ -310,7 +283,7 @@ export default async function handler(req, res) {
               <tr>
                 <td style="padding:12px 0;border-bottom:1px solid #e8e5de;">
                   <span style="font-size:9px;letter-spacing:1.5px;color:#999;text-transform:uppercase;">Overall</span><br>
-                  <span style="font-size:16px;font-weight:bold;color:${result.overall_sentiment==='positive'?'#1a5c3a':result.overall_sentiment==='negative'?'#7a1a1a':'#1a3a5c'}">${result.overall_sentiment.toUpperCase()}</span>
+                  <span style="font-size:16px;font-weight:bold;color:${result.overall_sentiment==='positive'?'#1a5c3a':result.overall_sentiment==='negative'?'#7a1a1a':'#1a3a5c'}">${(result.overall_sentiment||'').toUpperCase()}</span>
                 </td>
                 <td style="padding:12px 0;border-bottom:1px solid #e8e5de;">
                   <span style="font-size:9px;letter-spacing:1.5px;color:#999;text-transform:uppercase;">Confidence</span><br>
@@ -333,13 +306,7 @@ export default async function handler(req, res) {
           </div>
         </div>
       `,
-      attachments: [
-        {
-          filename,
-          content: pdfBase64,
-          type: 'application/pdf'
-        }
-      ]
+      attachments: [{ filename, content: pdfBase64, type: 'application/pdf' }]
     });
 
     res.setHeader('Access-Control-Allow-Origin', '*');

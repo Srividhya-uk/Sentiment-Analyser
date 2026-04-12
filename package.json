@@ -7,10 +7,10 @@
     "dev": "vercel dev"
   },
   "dependencies": {
-    "pdfkit": "^0.15.0",
+    "pdf-lib": "^1.17.1",
     "resend": "^3.2.0"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   }
 }
