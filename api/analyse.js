@@ -75,27 +75,53 @@ Hard rules:
           }
         ],
         temperature: 0.3,
-        max_tokens: 1500,
+        max_tokens: 2048,
         top_p: 0.9
       })
     });
 
     if (!response.ok) {
       const err = await response.text();
-      return res.status(response.status).json({ error: 'Together AI API error', detail: err });
+      return res.status(response.status).json({ error: 'Groq API error', detail: err });
     }
 
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
 
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    // Clean markdown fences
+    let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
+    // Extract JSON object
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Could not parse model response', raw: text });
     }
 
-    const result = JSON.parse(jsonMatch[0]);
+    let jsonStr = jsonMatch[0];
+
+    // Repair common JSON issues from LLM output:
+    // 1. Remove trailing commas before ] or }
+    jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
+    // 2. Fix unescaped newlines inside strings
+    jsonStr = jsonStr.replace(/:\s*"([^"]*)\n([^"]*)"/g, ': "$1 $2"');
+    // 3. Truncate if model hit token limit mid-array — close open structures
+    try {
+      JSON.parse(jsonStr);
+    } catch(e) {
+      // Try to close any open arrays/objects by counting brackets
+      const opens = (jsonStr.match(/\[/g) || []).length;
+      const closes = (jsonStr.match(/\]/g) || []).length;
+      const openBrace = (jsonStr.match(/\{/g) || []).length;
+      const closeBrace = (jsonStr.match(/\}/g) || []).length;
+      // Remove last incomplete element (trailing comma or partial string)
+      jsonStr = jsonStr.replace(/,\s*$/, '');
+      jsonStr = jsonStr.replace(/,\s*"[^"]*$/, '');
+      // Close missing brackets
+      for (let i = 0; i < opens - closes; i++) jsonStr += ']';
+      for (let i = 0; i < openBrace - closeBrace; i++) jsonStr += '}';
+    }
+
+    const result = JSON.parse(jsonStr);
     return res.status(200).json(result);
 
   } catch (err) {
