@@ -272,9 +272,9 @@ export default async function handler(req, res) {
     const entitySlug = (result.entity || 'entity').replace(/\s+/g, '-').toLowerCase();
     const filename = `grayling-sentiment-${entitySlug}.pdf`;
 
-    await resend.emails.send({
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: 'Grayling Sentiment Analyser <onboarding@resend.dev>',
-      to: 'srividhyanatarajan11@gmail.com',
+      to: 'srividhyadarshya@gmail.com',
       subject: `Sentiment Report Request: ${result.entity} - ${contact.name}, ${contact.company}`,
       html: `
         <div style="font-family:Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a;">
@@ -321,8 +321,13 @@ export default async function handler(req, res) {
       attachments: [{ filename, content: pdfBase64, type: 'application/pdf' }]
     });
 
+    if (emailError) {
+      console.error('Resend error:', JSON.stringify(emailError));
+      return res.status(500).json({ error: 'Email failed: ' + (emailError.message || JSON.stringify(emailError)) });
+    }
+
     res.setHeader('Access-Control-Allow-Origin', '*');
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ success: true, emailId: emailData?.id });
 
   } catch (err) {
     console.error('Contact handler error:', err);
