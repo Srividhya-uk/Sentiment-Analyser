@@ -1,7 +1,25 @@
 {
   "version": 2,
-  "rewrites": [
-    { "source": "/api/analyse", "destination": "/api/analyse.js" },
-    { "source": "/api/contact", "destination": "/api/contact.js" }
+  "functions": {
+    "api/analyse.js": {
+      "runtime": "@vercel/node@5.x"
+    },
+    "api/contact.js": {
+      "runtime": "@vercel/node@5.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/analyse",
+      "dest": "/api/analyse.js"
+    },
+    {
+      "src": "/api/contact",
+      "dest": "/api/contact.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
   ]
 }
