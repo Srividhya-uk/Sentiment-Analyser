@@ -1,8 +1,3 @@
 {
-  "version": 2,
-  "routes": [
-    { "src": "/api/analyse", "dest": "/api/analyse.js" },
-    { "src": "/api/contact", "dest": "/api/contact.js" },
-    { "src": "/(.*)", "dest": "/$1" }
-  ]
+  "version": 2
 }
