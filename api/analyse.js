@@ -1,10 +1,18 @@
 export default async function handler(req, res) {
-  // Only allow POST
+  // Handle CORS preflight
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.NVIDIA_API_KEY || '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';
+  const apiKey = process.env.NVIDIA_API_KEY || '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';
 
   const { query, model } = req.body;
   if (!query) {
@@ -88,7 +96,6 @@ Hard rules:
     const result = JSON.parse(jsonMatch[0]);
 
     // CORS header so the browser frontend can call this
-    res.setHeader('Access-Control-Allow-Origin', '*');
     return res.status(200).json(result);
 
   } catch (err) {
