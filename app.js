@@ -1,5 +1,3 @@
-document.addEventListener('DOMContentLoaded', function() {
-
 // ── SAFE TEXT HELPER ──
 function safe(str) {
   if (!str) return '';
@@ -307,5 +305,3 @@ function render(r) {
 }
 
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
-
-}); // end DOMContentLoaded
