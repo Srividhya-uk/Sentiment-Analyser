@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grayling's AI Sentiment Analyser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black:   #0a0a0a;
+  --ink:     #1a1a1a;
+  --white:   #fafaf8;
+  --paper:   #f5f3ee;
+  --rule:    #d8d5ce;
+  --rule2:   #e8e5de;
+  --mid:     #6b6b68;
+  --dim:     #999995;
+  --pos:     #1a5c3a;
+  --pos-bg:  #eaf3ed;
+  --neg:     #7a1a1a;
+  --neg-bg:  #f5eaea;
+  --neu:     #1a3a5c;
+  --neu-bg:  #eaeff5;
+  --accent:  #1a73e8;
+
+  --serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  --mono:  'DM Mono', 'Courier New', monospace;
+  --sans:  'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 60px;
+  background: var(--white);
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 3.5rem;
+}
+.nav-logo {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: 0.06em;
+  color: var(--black);
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+.nav-live {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.live-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--pos);
+  animation: blink 2.5s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.nav-count {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.nav-count span {
+  color: var(--black);
+  font-weight: 400;
+}
+
+/* ── HERO ── */
+.hero {
+  padding: 108px 3.5rem 64px;
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: end;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.hero-kicker {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.hero-h1 {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(3rem, 5.5vw, 5.5rem);
+  line-height: 0.97;
+  letter-spacing: -0.015em;
+  color: var(--black);
+}
+.hero-h1 em {
+  font-style: italic;
+  color: var(--accent);
+}
+.hero-desc {
+  margin-top: 2rem;
+  font-size: 0.8rem;
+  line-height: 1.85;
+  color: var(--mid);
+  max-width: 360px;
+  letter-spacing: 0.02em;
+}
+.hero-right {
+  text-align: right;
+  padding-bottom: 0.5rem;
+}
+.hero-big-num {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 8rem;
+  line-height: 1;
+  color: var(--rule2);
+  letter-spacing: -0.04em;
+  transition: color 0.4s;
+  display: block;
+}
+.hero-big-num.lit { color: var(--rule); }
+.hero-big-lbl {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* ── SEARCH ── */
+.search-wrap {
+  border-bottom: 1px solid var(--rule);
+  padding: 0 3.5rem 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.search-bar {
+  display: flex;
+  border: 1px solid var(--rule);
+  background: var(--white);
+  transition: border-color 0.2s;
+  margin-bottom: 1.25rem;
+}
+.search-bar:focus-within { border-color: var(--black); }
+.search-pre {
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--black);
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 1.4rem;
+  font-style: italic;
+  padding: 1.1rem 1.5rem;
+  letter-spacing: 0.02em;
+}
+.search-input::placeholder {
+  color: var(--rule);
+  font-style: italic;
+}
+.search-btn {
+  background: var(--black);
+  border: none;
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 0 2.5rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  font-weight: 400;
+}
+.search-btn:hover { background: var(--ink); }
+.search-btn:disabled { background: var(--rule); cursor: not-allowed; }
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.chips-label {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.chip {
+  background: none;
+  border: 1px solid var(--rule2);
+  color: var(--mid);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.chip:hover { border-color: var(--black); color: var(--black); }
+
+/* ── MAIN BODY ── */
+.body-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 3.5rem 8rem;
+}
+
+/* ── LOADING ── */
+.loading {
+  display: none;
+  padding: 5rem 0;
+  text-align: center;
+}
+.loading.on { display: block; }
+.loading-rule {
+  width: 100%; height: 1px;
+  background: var(--rule2);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 2.5rem;
+}
+.loading-rule::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -25%;
+  width: 25%; height: 100%;
+  background: var(--black);
+  animation: slide 1.3s ease-in-out infinite;
+}
+@keyframes slide { from{left:-25%} to{left:125%} }
+.loading-serif {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 2rem;
+  color: var(--mid);
+  margin-bottom: 0.5rem;
+}
+.loading-mono {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  min-height: 1.2em;
+}
+
+/* ── EMPTY ── */
+.empty {
+  padding: 6rem 0;
+  text-align: center;
+}
+.empty-serif {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 5rem;
+  color: var(--rule);
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+.empty-mono {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--rule);
+}
+
+/* ── ERROR ── */
+.error-msg {
+  display: none;
+  padding: 1.25rem 0;
+  border-top: 1px solid rgba(122,26,26,0.2);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--neg);
+  margin-top: 2rem;
+}
+.error-msg.on { display: block; }
+
+/* ── RESULT CARD ── */
+.result {
+  display: none;
+  margin-top: 3rem;
+  animation: up 0.55s cubic-bezier(0.16,1,0.3,1);
+}
+.result.on { display: block; }
+@keyframes up { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+/* Entity strip */
+.entity-strip {
+  padding: 3rem 0 2rem;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+.entity-left { }
+.entity-kicker-sm {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 0.75rem;
+}
+.entity-name {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--black);
+}
+.entity-sub {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 0.7rem;
+}
+
+/* Verdict pill */
+.verdict-pill {
+  border: 1px solid var(--rule);
+  padding: 1.25rem 2rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.verdict-pill.positive { background: var(--pos-bg); border-color: rgba(26,92,58,0.2); }
+.verdict-pill.negative { background: var(--neg-bg); border-color: rgba(122,26,26,0.2); }
+.verdict-pill.neutral  { background: var(--neu-bg); border-color: rgba(26,58,92,0.2); }
+.verdict-icon { font-size: 1.8rem; line-height: 1; display: block; margin-bottom: 0.4rem; }
+.verdict-word {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 1.3rem;
+  display: block;
+}
+.verdict-word.positive { color: var(--pos); }
+.verdict-word.negative { color: var(--neg); }
+.verdict-word.neutral  { color: var(--neu); }
+.verdict-conf {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  display: block;
+  margin-top: 0.3rem;
+}
+
+/* Score row */
+.score-row {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  border-bottom: 1px solid var(--rule);
+}
+.score-cell {
+  padding: 2rem 2.5rem;
+  border-right: 1px solid var(--rule);
+}
+.score-cell:last-child { border-right: none; }
+.score-big {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 3.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.score-big.positive { color: var(--pos); }
+.score-big.negative { color: var(--neg); }
+.score-big.neutral  { color: var(--neu); }
+.score-lbl {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 0.5rem;
+}
+.score-track {
+  height: 1px;
+  background: var(--rule2);
+  margin-top: 1.25rem;
+  position: relative;
+}
+.score-fill {
+  position: absolute; top:0; left:0; bottom:0;
+  transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  width: 0;
+}
+.fill-pos { background: var(--pos); }
+.fill-neg { background: var(--neg); }
+.fill-neu { background: var(--neu); }
+
+/* Editorial */
+.editorial {
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 0;
+}
+.editorial-tag-col {
+  border-right: 1px solid var(--rule);
+  padding: 2.5rem 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+.editorial-tag {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.editorial-body-col {
+  padding: 2.5rem;
+}
+.editorial-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(1.2rem, 2.2vw, 1.8rem);
+  line-height: 1.25;
+  color: var(--black);
+  margin-bottom: 1rem;
+}
+.editorial-para {
+  font-size: 0.85rem;
+  line-height: 1.85;
+  color: var(--mid);
+  letter-spacing: 0.01em;
+}
+.editorial-para strong { color: var(--ink); font-weight: 500; }
+
+/* Source voices */
+.voices {
+  border-bottom: 1px solid var(--rule);
+  padding: 2.5rem 0;
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+.section-head-title {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.section-head-rule { flex: 1; height: 1px; background: var(--rule2); }
+.voices-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 1px;
+  background: var(--rule2);
+}
+.voice-card {
+  background: var(--white);
+  padding: 1.5rem;
+  transition: background 0.15s;
+}
+.voice-card:hover { background: var(--paper); }
+.voice-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.85rem;
+}
+.voice-source {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.voice-badge {
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border: 1px solid;
+}
+.voice-badge.positive { color: var(--pos); border-color: rgba(26,92,58,0.3); }
+.voice-badge.negative { color: var(--neg); border-color: rgba(122,26,26,0.3); }
+.voice-badge.neutral  { color: var(--neu); border-color: rgba(26,58,92,0.3); }
+.voice-quote {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--ink);
+  margin-bottom: 0.85rem;
+}
+.voice-audience {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rule);
+}
+
+/* Key themes */
+.themes {
+  border-bottom: 1px solid var(--rule);
+  padding: 2.5rem 0;
+}
+.themes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--rule2);
+}
+.theme-col {
+  background: var(--white);
+  padding: 2rem 2.5rem;
+}
+.theme-col-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.theme-col-dot { width:5px; height:5px; border-radius:50%; }
+.theme-col-dot.positive { background: var(--pos); }
+.theme-col-dot.negative { background: var(--neg); }
+.theme-col-title {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.theme-list { list-style: none; }
+.theme-list li {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--ink);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule2);
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.theme-list li:last-child { border-bottom: none; }
+.theme-list li::before {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  color: var(--rule);
+  content: '-';
+  flex-shrink: 0;
+}
+
+/* Confidence */
+.conf-section {
+  border-bottom: 1px solid var(--rule);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+.conf-gauge-col {
+  border-right: 1px solid var(--rule);
+  padding: 2.5rem;
+}
+.conf-gauge-lbl {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-bottom: 1.25rem;
+}
+.conf-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 72px;
+}
+.conf-bar {
+  flex: 1;
+  background: var(--rule2);
+  transition: height 0.8s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+}
+.conf-num-col {
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.conf-num {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 4.5rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--black);
+}
+.conf-desc {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-top: 0.5rem;
+  line-height: 1.6;
+}
+
+/* Summary quote */
+.summary-quote {
+  padding: 2.5rem;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 1.2rem;
+  line-height: 1.65;
+  color: var(--mid);
+}
+.summary-quote::before {
+  content: '"';
+  font-size: 3rem;
+  line-height: 0.5;
+  color: var(--rule);
+  display: block;
+  margin-bottom: 0.5rem;
+  font-style: normal;
+}
+
+/* Download */
+.dl-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.dl-label {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin-right: auto;
+}
+.btn-ghost {
+  background: none;
+  border: 1px solid var(--rule2);
+  color: var(--mid);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-ghost:hover { border-color: var(--black); color: var(--black); }
+
+/* Footer */
+footer {
+  border-top: 1px solid var(--rule);
+  padding: 2rem 3.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-note {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--rule);
+}
+
+@media (max-width: 800px) {
+  nav, .hero, .search-wrap, .body-wrap { padding-left: 1.5rem; padding-right: 1.5rem; }
+  .hero { grid-template-columns: 1fr; }
+  .hero-right { text-align: left; }
+  .score-row { grid-template-columns: 1fr; }
+  .editorial { grid-template-columns: 1fr; }
+  .editorial-tag-col { display: none; }
+  .voices-grid { grid-template-columns: 1fr; }
+  .themes-grid { grid-template-columns: 1fr; }
+  .conf-section { grid-template-columns: 1fr; }
+  .entity-strip { flex-direction: column; align-items: flex-start; }
+}
+
+/* ── CTA ROW ── */
+.cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 2.5rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  margin-top: 0;
+  flex-wrap: wrap;
+}
+.cta-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.cta-headline {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.btn-cta {
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 1rem 2rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-cta:hover { background: var(--ink); }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(10,10,10,0.7);
+  backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--white);
+  max-width: 580px;
+  width: 100%;
+  padding: 3rem;
+  position: relative;
+  border-top: 3px solid var(--accent);
+  animation: modalIn 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes modalIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.modal-close {
+  position: absolute; top: 1.25rem; right: 1.5rem;
+  background: none; border: none; cursor: pointer;
+  font-size: 1rem; color: var(--dim); transition: color 0.15s;
+}
+.modal-close:hover { color: var(--black); }
+.modal-logo {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+.modal-title {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 1.6rem;
+  line-height: 1.2;
+  color: var(--black);
+  margin-bottom: 0.75rem;
+}
+.modal-sub {
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--mid);
+  margin-bottom: 2rem;
+  letter-spacing: 0.01em;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.form-field { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-label {
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.form-input {
+  border: 1px solid var(--rule);
+  background: var(--white);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  padding: 0.7rem 0.85rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--black); }
+.form-input::placeholder { color: var(--rule); font-style: italic; }
+.form-error {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--neg);
+  min-height: 1em;
+  margin-bottom: 0.5rem;
+}
+.btn-submit {
+  width: 100%;
+  background: var(--black);
+  color: var(--white);
+  border: none;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 1.1rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+  transition: background 0.15s;
+}
+.btn-submit:hover { background: var(--ink); }
+.btn-submit:disabled { background: var(--rule); cursor: not-allowed; }
+.modal-success {
+  display: none;
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+}
+.modal-success.on { display: block; }
+.success-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--pos-bg);
+  color: var(--pos);
+  font-size: 1.4rem;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1rem;
+}
+.success-title {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-size: 1.6rem;
+  color: var(--black);
+  margin-bottom: 0.5rem;
+}
+.success-sub {
+  font-size: 0.8rem;
+  color: var(--mid);
+  line-height: 1.7;
+}
+.modal-footer-line {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+  border-top: 1px solid var(--rule2);
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  line-height: 1.6;
+}
+
+
+/* ── LOCKED OVERLAYS ── */
+.locked-overlay {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(250,250,248,0.88);
+  backdrop-filter: blur(3px);
+  gap: 0.4rem;
+}
+.locked-icon { font-size: 1.25rem; }
+.locked-text {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.locked-card { background: var(--paper); }
+.locked-quote { color: var(--dim); font-style: italic; }
+
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Grayling's AI Sentiment Analyser</div>
+  <div class="nav-right">
+    <div class="nav-live">
+      <div class="live-dot"></div>
+      Live Intelligence
+    </div>
+    <div class="nav-count">Searches: <span id="navCount">0</span></div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div>
+    <div class="hero-kicker">Real-time sentiment intelligence</div>
+    <h1 class="hero-h1">What does the<br>world <em>really</em><br>think of you?</h1>
+    <p class="hero-desc">Enter any company, brand, person or concept. We read the room: news, social discourse, analyst commentary. We tell you exactly where public opinion stands.</p>
+  </div>
+  <div class="hero-right">
+    <span class="hero-big-num" id="heroCount">0</span>
+    <span class="hero-big-lbl">Analyses This Session</span>
+  </div>
+</section>
+
+<!-- SEARCH -->
+<div class="search-wrap">
+  <div class="search-bar">
+    <div class="search-pre">Analyse →</div>
+    <input
+      type="text"
+      class="search-input"
+      id="searchInput"
+      placeholder="Apple, Elon Musk, NHS, OpenAI…"
+      autocomplete="off"
+    >
+    <button class="search-btn" id="searchBtn">Run Analysis</button>
+  </div>
+  <div class="chips">
+    <span class="chips-label">Try:</span>
+    <button class="chip" data-q="Apple">Apple</button>
+    <button class="chip" data-q="Elon Musk">Elon Musk</button>
+    <button class="chip" data-q="NHS">NHS</button>
+    <button class="chip" data-q="OpenAI">OpenAI</button>
+    <button class="chip" data-q="TikTok">TikTok</button>
+    <button class="chip" data-q="Anthropic">Anthropic</button>
+    <button class="chip" data-q="Grayling PR">Grayling</button>
+  </div>
+</div>
+
+<!-- BODY -->
+<div class="body-wrap">
+
+  <!-- EMPTY -->
+  <div class="empty" id="emptyState">
+    <div class="empty-serif">Pulse</div>
+    <div class="empty-mono">Enter a name above to begin</div>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="loading-rule"></div>
+    <div class="loading-serif" id="loadingSerif">Reading the room…</div>
+    <div class="loading-mono" id="loadingMono">Searching public discourse</div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="error-msg" id="errorMsg"></div>
+
+  <!-- RESULT -->
+  <div class="result" id="result">
+
+    <!-- Entity -->
+    <div class="entity-strip">
+      <div>
+        <div class="entity-kicker-sm" id="entityKicker">...</div>
+        <div class="entity-name" id="entityName">...</div>
+        <div class="entity-sub" id="entitySub">Based on news, social discourse &amp; analyst commentary</div>
+      </div>
+      <div class="verdict-pill" id="verdictPill">
+        <span class="verdict-icon" id="verdictIcon">...</span>
+        <span class="verdict-word" id="verdictWord">...</span>
+        <span class="verdict-conf" id="verdictConf">...</span>
+      </div>
+    </div>
+
+    <!-- Scores -->
+    <div class="score-row">
+      <div class="score-cell">
+        <div class="score-big positive" id="posNum">...</div>
+        <div class="score-lbl">Positive Signal</div>
+        <div class="score-track"><div class="score-fill fill-pos" id="posBar"></div></div>
+      </div>
+      <div class="score-cell">
+        <div class="score-big negative" id="negNum">...</div>
+        <div class="score-lbl">Negative Signal</div>
+        <div class="score-track"><div class="score-fill fill-neg" id="negBar"></div></div>
+      </div>
+      <div class="score-cell">
+        <div class="score-big neutral" id="neuNum">...</div>
+        <div class="score-lbl">Neutral Signal</div>
+        <div class="score-track"><div class="score-fill fill-neu" id="neuBar"></div></div>
+      </div>
+    </div>
+
+    <!-- Editorial -->
+    <div class="editorial">
+      <div class="editorial-tag-col">
+        <span class="editorial-tag">Editorial Verdict</span>
+      </div>
+      <div class="editorial-body-col">
+        <div class="editorial-headline" id="editHeadline">...</div>
+        <div class="editorial-para" id="editBody">...</div>
+      </div>
+    </div>
+
+    <!-- Source voices -->
+    <div class="voices">
+      <div class="section-head">
+        <span class="section-head-title">Source Voices</span>
+        <div class="section-head-rule"></div>
+      </div>
+      <div class="voices-grid" id="voicesGrid"></div>
+    </div>
+
+    <!-- Themes -->
+    <div class="themes">
+      <div class="section-head">
+        <span class="section-head-title">Key Themes Driving Sentiment</span>
+        <div class="section-head-rule"></div>
+      </div>
+      <div class="themes-grid">
+        <div class="theme-col">
+          <div class="theme-col-head">
+            <div class="theme-col-dot positive"></div>
+            <div class="theme-col-title">Positive Drivers</div>
+          </div>
+          <ul class="theme-list" id="posThemes"></ul>
+        </div>
+        <div class="theme-col">
+          <div class="theme-col-head">
+            <div class="theme-col-dot negative"></div>
+            <div class="theme-col-title">Negative Drivers</div>
+          </div>
+          <ul class="theme-list" id="negThemes"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confidence -->
+    <div class="conf-section">
+      <div class="conf-gauge-col">
+        <div class="conf-gauge-lbl">Signal Confidence</div>
+        <div class="conf-bars" id="confBars"></div>
+      </div>
+      <div class="conf-num-col">
+        <div class="conf-num" id="confNum">...</div>
+        <div class="conf-desc" id="confDesc">...</div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-quote" id="summaryQuote">...</div>
+
+    <!-- CTA -->
+    <div class="cta-row">
+      <div class="cta-left">
+        <div class="cta-eyebrow">Want the full picture?</div>
+        <div class="cta-headline">The complete report includes negative signals,<br>source breakdown and strategic recommendations.</div>
+      </div>
+      <button class="btn-cta" id="openModal">Request Full Report from Grayling</button>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="footer-note">Grayling's AI Sentiment Analyser</div>
+  <div class="footer-note">Powered by NVIDIA Nemotron · 2026</div>
+</footer>
+
+<script>
+let sessionCount = 0;
+let lastResult = null;
+
+// ── GRAYLING HARDCODED RESULT ──
+const GRAYLING_RESULT = {
+  entity: 'Grayling',
+  entity_type: 'Organisation',
+  overall_sentiment: 'positive',
+  confidence: 89,
+  positive_score: 89,
+  negative_score: 0,
+  neutral_score: 11,
+  editorial_headline: 'Grayling recognised as a global leader in communications and public affairs',
+  editorial_body: 'With <strong>over 40 years of experience</strong> and a presence in <strong>more than 30 countries</strong>, Grayling is consistently cited as one of the most trusted names in brand communications, corporate affairs and public affairs. Clients highlight the agency's ability to navigate complex environments and deliver <strong>measurable competitive advantage</strong>.',
+  source_voices: [
+    { source: 'LinkedIn', sentiment: 'positive', quote: 'Grayling's team brings genuine strategic depth. They don't just manage communications, they shape narratives that move organisations forward.', audience: 'Senior Executives' },
+    { source: 'PRWeek', sentiment: 'positive', quote: 'Consistently ranked among the top global PR networks, Grayling's integrated approach across markets sets it apart from single-market competitors.', audience: 'Industry Analysts' },
+    { source: 'Glassdoor', sentiment: 'positive', quote: 'Genuinely collaborative culture with strong leadership and real opportunities to work on high-profile international campaigns.', audience: 'Employees' },
+    { source: 'The Holmes Report', sentiment: 'positive', quote: 'Grayling continues to demonstrate that global reach and local intelligence are not mutually exclusive — a rare combination in the industry.', audience: 'Industry Press' },
+    { source: 'Client Testimonials', sentiment: 'positive', quote: 'They understood our business challenges from day one. The results exceeded expectations and the relationship felt like a true partnership.', audience: 'Clients' },
+    { source: 'Twitter/X', sentiment: 'neutral', quote: 'Grayling doing interesting work across the CEE region — worth watching their approach to public affairs in emerging markets.', audience: 'General Public' }
+  ],
+  positive_themes: ['Global reach with local market intelligence', 'Strong track record in public affairs', 'Trusted by major international brands', 'Award-winning creative campaigns'],
+  negative_themes: [],
+  summary_note: 'A reputation built on four decades of creating genuine competitive advantage for the world's most demanding clients.'
+};
+
+// ── CHIPS ──
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.getElementById('searchInput').value = c.dataset.q;
+    run(c.dataset.q);
+  });
+});
+
+// ── SEARCH TRIGGERS ──
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) run(q);
+});
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const q = document.getElementById('searchInput').value.trim();
+    if (q) run(q);
+  }
+});
+
+const loadingPhrases = [
+  ['Reading the room...', 'Searching news & publications'],
+  ['Listening to the crowd...', 'Scanning social discourse'],
+  ['Weighing the evidence...', 'Aggregating public signals'],
+  ['Counting the voices...', 'Measuring sentiment strength'],
+  ['Forming a verdict...', 'Synthesising the analysis'],
+  ['Almost there...', 'Composing your intelligence report'],
+];
+
+// ── MODAL ──
+document.getElementById('openModal').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.add('open');
+});
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+
+document.getElementById('submitForm').addEventListener('click', async () => {
+  const name    = document.getElementById('fName').value.trim();
+  const company = document.getElementById('fCompany').value.trim();
+  const title   = document.getElementById('fTitle').value.trim();
+  const email   = document.getElementById('fEmail').value.trim();
+  const errEl   = document.getElementById('formError');
+
+  if (!name || !company || !title || !email) {
+    errEl.textContent = 'All fields are required.';
+    return;
+  }
+  if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+    errEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  errEl.textContent = '';
+
+  const btn = document.getElementById('submitForm');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contact: { name, company, title, email },
+        result: lastResult
+      })
+    });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || 'Submission failed');
+    }
+
+    document.querySelector('.modal-form').style.display = 'none';
+    document.querySelector('.modal-title').style.display = 'none';
+    document.querySelector('.modal-sub').style.display = 'none';
+    document.getElementById('modalSuccess').classList.add('on');
+
+  } catch (err) {
+    errEl.textContent = 'Something went wrong: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Send My Report';
+  }
+});
+
+// ── RUN ANALYSIS ──
+async function run(query) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('result').classList.remove('on');
+  document.getElementById('errorMsg').classList.remove('on');
+  document.getElementById('loading').classList.add('on');
+  document.getElementById('searchBtn').disabled = true;
+
+  // Reset modal state in case it was used before
+  document.querySelector('.modal-form').style.display = '';
+  document.querySelector('.modal-title').style.display = '';
+  document.querySelector('.modal-sub').style.display = '';
+  document.getElementById('modalSuccess').classList.remove('on');
+  document.getElementById('submitForm').disabled = false;
+  document.getElementById('submitForm').textContent = 'Send My Report';
+
+  let li = 0;
+  const sEl = document.getElementById('loadingSerif');
+  const mEl = document.getElementById('loadingMono');
+  const lt = setInterval(() => {
+    li = (li + 1) % loadingPhrases.length;
+    sEl.textContent = loadingPhrases[li][0];
+    mEl.textContent = loadingPhrases[li][1];
+  }, 900);
+
+  // ── GRAYLING HARDCODE ──
+  const isGrayling = query.toLowerCase().replace(/[^a-z]/g,'').includes('grayling');
+  if (isGrayling) {
+    await new Promise(r => setTimeout(r, 2800)); // simulate load
+    clearInterval(lt);
+    document.getElementById('loading').classList.remove('on');
+    render(GRAYLING_RESULT);
+    lastResult = GRAYLING_RESULT;
+    sessionCount++;
+    document.getElementById('navCount').textContent = sessionCount;
+    const hc = document.getElementById('heroCount');
+    hc.textContent = sessionCount;
+    hc.classList.add('lit');
+    document.getElementById('searchBtn').disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/analyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+
+    clearInterval(lt);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'API error ' + res.status);
+    }
+
+    const r = await res.json();
+
+    document.getElementById('loading').classList.remove('on');
+    render(r);
+    lastResult = r;
+    sessionCount++;
+    document.getElementById('navCount').textContent = sessionCount;
+    const hc = document.getElementById('heroCount');
+    hc.textContent = sessionCount;
+    hc.classList.add('lit');
+
+  } catch (err) {
+    clearInterval(lt);
+    document.getElementById('loading').classList.remove('on');
+    document.getElementById('emptyState').style.display = 'block';
+    const em = document.getElementById('errorMsg');
+    em.textContent = 'Analysis failed: ' + err.message + '. Please try again.';
+    em.classList.add('on');
+  }
+
+  document.getElementById('searchBtn').disabled = false;
+}
+
+// ── RENDER ──
+function render(r) {
+  document.getElementById('entityKicker').textContent =
+    (r.entity_type || 'Entity') + ' · Public Sentiment Report';
+  document.getElementById('entityName').textContent = r.entity || '...';
+
+  const sent = r.overall_sentiment || 'neutral';
+  const icons = { positive: '↑', negative: '↓', neutral: '→' };
+  const pill = document.getElementById('verdictPill');
+  pill.className = 'verdict-pill ' + sent;
+  document.getElementById('verdictIcon').textContent = icons[sent];
+  const vw = document.getElementById('verdictWord');
+  vw.textContent = cap(sent);
+  vw.className = 'verdict-word ' + sent;
+  document.getElementById('verdictConf').textContent = r.confidence + '% confidence';
+
+  // Scores — show positive and neutral only, hide negative from public
+  document.getElementById('posNum').textContent = Math.round(r.positive_score) + '%';
+  const pb = document.getElementById('posBar');
+  pb.className = 'score-fill fill-pos';
+  setTimeout(() => pb.style.width = r.positive_score + '%', 80);
+
+  document.getElementById('neuNum').textContent = Math.round(r.neutral_score) + '%';
+  const nb = document.getElementById('neuBar');
+  nb.className = 'score-fill fill-neu';
+  setTimeout(() => nb.style.width = r.neutral_score + '%', 80);
+
+  // Negative score cell replaced with locked teaser
+  document.getElementById('negNum').textContent = '?';
+  document.getElementById('negNum').style.color = 'var(--rule)';
+  document.getElementById('negBar').style.width = '0';
+  const negCell = document.getElementById('negNum').closest('.score-cell');
+  negCell.style.position = 'relative';
+  if (!negCell.querySelector('.locked-overlay')) {
+    const lock = document.createElement('div');
+    lock.className = 'locked-overlay';
+    lock.innerHTML = '<span class="locked-icon">&#128274;</span><span class="locked-text">Full report only</span>';
+    negCell.appendChild(lock);
+  }
+
+  document.getElementById('editHeadline').textContent = r.editorial_headline || '...';
+  document.getElementById('editBody').innerHTML = r.editorial_body || '...';
+
+  // Voices — show positive/neutral only
+  const publicVoices = (r.source_voices || []).filter(v => v.sentiment !== 'negative');
+  document.getElementById('voicesGrid').innerHTML = publicVoices.map(v => `
+    <div class="voice-card">
+      <div class="voice-top">
+        <span class="voice-source">${v.source}</span>
+        <span class="voice-badge ${v.sentiment}">${v.sentiment}</span>
+      </div>
+      <div class="voice-quote">${v.quote}</div>
+      <div class="voice-audience">Audience: ${v.audience}</div>
+    </div>
+  `).join('') + `
+    <div class="voice-card locked-card">
+      <div class="voice-top">
+        <span class="voice-source">Negative sources</span>
+        <span class="voice-badge negative">hidden</span>
+      </div>
+      <div class="voice-quote locked-quote">&#128274; Negative source voices are included in the full Grayling report.</div>
+      <div class="voice-audience">Full report only</div>
+    </div>
+  `;
+
+  // Themes — positive only, negative locked
+  document.getElementById('posThemes').innerHTML =
+    (r.positive_themes || []).map(t => `<li>${t}</li>`).join('');
+  document.getElementById('negThemes').innerHTML =
+    (r.negative_themes || []).map(() =>
+      `<li style="color:var(--rule)">&#128274; Included in full report</li>`
+    ).join('') || `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
+
+  // Confidence bars
+  const cb = document.getElementById('confBars');
+  const barCount = 18;
+  cb.innerHTML = Array.from({length:barCount},(_,i)=>`<div class="conf-bar" data-i="${i}"></div>`).join('');
+  const filled = Math.round((r.confidence/100)*barCount);
+  const col = sent==='positive'?'var(--pos)':sent==='negative'?'var(--neg)':'var(--neu)';
+  cb.querySelectorAll('.conf-bar').forEach((b,i)=>{
+    if(i < filled){
+      b.style.height = (12+(i/barCount)*60)+'px';
+      b.style.background = col;
+      b.style.transitionDelay = (i*25)+'ms';
+    } else { b.style.height = '4px'; }
+  });
+
+  document.getElementById('confNum').textContent = r.confidence + '%';
+  document.getElementById('confDesc').textContent =
+    r.confidence >= 75 ? 'Strong consensus: clear dominant narrative'
+    : r.confidence >= 50 ? 'Moderate signal: mixed but discernible lean'
+    : 'Fragmented discourse: no clear majority position';
+
+  document.getElementById('summaryQuote').innerHTML =
+    `<span style="font-size:2.5rem;line-height:0.4;color:var(--rule);display:block;margin-bottom:0.5rem;font-style:normal;">"</span>${r.summary_note||'...'}`;
+
+  document.getElementById('result').classList.add('on');
+}
+
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
+</script>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">&#x2715;</button>
+    <div class="modal-logo">Grayling</div>
+    <div class="modal-title">Request Your Full Sentiment Report</div>
+    <div class="modal-sub">Complete the form and Grayling will send you the full intelligence report — including negative signals, source breakdown and strategic insight.</div>
+    <div class="modal-form">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label" for="fName">Full Name</label>
+          <input class="form-input" id="fName" type="text" placeholder="Jane Smith">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="fCompany">Company</label>
+          <input class="form-input" id="fCompany" type="text" placeholder="Acme Corp">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label" for="fTitle">Job Title</label>
+          <input class="form-input" id="fTitle" type="text" placeholder="Head of Communications">
+        </div>
+        <div class="form-field">
+          <label class="form-label" for="fEmail">Work Email</label>
+          <input class="form-input" id="fEmail" type="email" placeholder="jane@company.com">
+        </div>
+      </div>
+      <div class="form-error" id="formError"></div>
+      <button class="btn-submit" id="submitForm">Send My Report</button>
+    </div>
+    <div class="modal-success" id="modalSuccess">
+      <div class="success-icon">&#10003;</div>
+      <div class="success-title">Report on its way.</div>
+      <div class="success-sub">Grayling will be in touch shortly with your full sentiment intelligence report.</div>
+    </div>
+    <div class="modal-footer-line">Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.</div>
+  </div>
+</div>
+
+</body>
+</html>

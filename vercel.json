@@ -1,8 +1,18 @@
 {
   "version": 2,
-  "outputDirectory": "public",
   "rewrites": [
     { "source": "/api/analyse", "destination": "/api/analyse.js" },
     { "source": "/api/contact", "destination": "/api/contact.js" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.anthropic.com https://integrate.api.nvidia.com; img-src 'self' data:; frame-ancestors 'none';"
+        }
+      ]
+    }
   ]
 }
