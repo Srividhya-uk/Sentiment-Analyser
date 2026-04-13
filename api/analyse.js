@@ -22,38 +22,42 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No query provided' });
   }
 
-  const prompt = `You are a senior public sentiment analyst. Produce a rigorous analysis of PUBLIC SENTIMENT around "${query}" based on real knowledge of news, social media, analyst commentary, consumer reviews, and public opinion.
+  const prompt = `You are a world-class public sentiment analyst with deep knowledge of media, social platforms, and public opinion. Analyse the REAL public sentiment around "${query}" right now.
 
-Return ONLY a valid JSON object with no markdown fences, no preamble, no trailing text:
+CRITICAL: Think carefully about ${query} specifically. What do you actually know about how the public perceives this entity? What controversies, praise, criticism, or events have shaped opinion? Use that knowledge to produce ACCURATE, SPECIFIC scores — not generic averages.
+
+Return ONLY a valid JSON object. No markdown, no preamble:
 
 {
   "entity": "${query}",
   "entity_type": "<exactly one of: Company | Brand | Person | Concept | Technology | Organisation | Product | Country | Movement>",
   "overall_sentiment": "<positive | negative | neutral>",
-  "confidence": <integer 0-100>,
-  "positive_score": <integer 0-100>,
-  "negative_score": <integer 0-100>,
-  "neutral_score": <integer 0-100>,
-  "editorial_headline": "<a sharp, editorial-style headline, max 14 words, sentence case, no quotes, captures the dominant public narrative>",
-  "editorial_body": "<2-3 sentences of incisive editorial analysis. Wrap 2-4 key specific facts/phrases in <strong> tags. Cite real events, trends, or shifts. Max 80 words. Be precise, not generic.>",
+  "confidence": <integer — how clearly one sentiment dominates. High polarisation = lower confidence. Very clear consensus = higher. Must reflect reality, not default to 80>,
+  "positive_score": <integer — real percentage of positive public sentiment. Must NOT be a round number like 60, 70, 80 unless genuinely accurate>,
+  "negative_score": <integer — real percentage of negative public sentiment>,
+  "neutral_score": <integer — remaining percentage>,
+  "editorial_headline": "<punchy, specific headline — name real events, controversies or trends. NOT generic. Max 14 words, sentence case>",
+  "editorial_body": "<2-3 sentences. MUST reference specific real events, product launches, controversies, people, or data points about ${query}. Wrap 2-4 key facts in <strong> tags. Be a journalist, not a press release writer. Max 80 words.>",
   "source_voices": [
     {
-      "source": "<realistic media/platform type e.g. Financial Times | Reddit | Bloomberg | The Guardian | LinkedIn | Trustpilot | Glassdoor | TechCrunch | Twitter/X | YouTube>",
+      "source": "<specific platform: Financial Times | Reddit | Bloomberg | The Guardian | LinkedIn | Trustpilot | Glassdoor | TechCrunch | Twitter/X | Consumer Reports>",
       "sentiment": "<positive | negative | neutral>",
-      "quote": "<a realistic, plausible 1 to 2 sentence paraphrase of how that platform audience discusses ${query}. Grounded in real discourse. Max 28 words.>",
-      "audience": "<e.g. Investors | General Public | Tech Community | Employees | Customers | Analysts>"
+      "quote": "<write what that specific audience ACTUALLY says about ${query} — reference real concerns or praise. Max 28 words. Sound like a real person, not a survey.>",
+      "audience": "<specific audience: Retail Investors | Gen Z Users | Enterprise Customers | Former Employees | Industry Analysts>"
     }
   ],
-  "positive_themes": ["<theme 1>", "<theme 2>", "<theme 3>", "<theme 4>"],
-  "negative_themes": ["<theme 1>", "<theme 2>", "<theme 3>", "<theme 4>"],
-  "summary_note": "<One precise, evocative sentence, max 20 words, capturing the single most telling insight about current public perception>"
+  "positive_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
+  "negative_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
+  "summary_note": "<One sharp sentence a seasoned editor would write. Reference something specific. Max 20 words.>"
 }
 
-Hard rules:
-- positive_score + negative_score + neutral_score must equal exactly 100
-- Include exactly 6 source_voices with a realistic mix of sentiments
-- All analysis must reflect genuine, accurate public opinion, not invented sentiment
-- summary_note must read like an editor's note, not a report conclusion`;
+RULES — violating these makes the output useless:
+- positive_score + negative_score + neutral_score = exactly 100
+- NEVER use 80/10/10, 70/20/10 or other suspiciously round splits — derive scores from actual public opinion
+- Include exactly 6 source_voices, mix of sentiments reflecting reality
+- Confidence must reflect genuine certainty, not default to 80
+- Every field must be specific to ${query}, never generic filler
+- summary_note must name something real and specific about ${query}`;
 
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -74,9 +78,10 @@ Hard rules:
             content: prompt
           }
         ],
-        temperature: 0.3,
+        temperature: 0.2,
         max_tokens: 2048,
-        top_p: 0.9
+        top_p: 0.9,
+        response_format: { type: 'json_object' }
       })
     });
 
