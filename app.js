@@ -38,7 +38,7 @@ const HEATHER_RESULT = {
     'Launched Grayling Media — a dedicated earned media and media relations unit'
   ],
   negative_themes: [],
-  summary_note: 'A CEO who combines award-winning creative credentials with genuine cultural leadership — rare in equal measure.'
+  summary_note: 'A CEO who combines award-winning creative credentials with genuine cultural leadership, rare in equal measure.'
 };
 
 
@@ -339,7 +339,7 @@ function render(r) {
   const summaryText = r.summary_note || r.summary || '';
   const summaryEl = document.getElementById('summaryQuote');
   if (summaryText) {
-    summaryEl.innerHTML = `<span style="display:block;font-size:2.8rem;line-height:0.6;opacity:0.35;font-style:normal;margin-bottom:0.75rem;">&ldquo;</span>${safe(summaryText)}`;
+    summaryEl.innerHTML = safe(summaryText);
     summaryEl.style.display = 'block';
   } else {
     summaryEl.style.display = 'none';
