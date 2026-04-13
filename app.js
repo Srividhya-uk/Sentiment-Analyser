@@ -10,6 +10,7 @@ return String(str)
 }
 
 let lastResult = null;
+const MAX_FREE_SEARCHES = 5;
 let sessionCount = parseInt(localStorage.getItem(‘grayling_search_count’) || ‘0’, 10);
 
 // Initialise display on load
@@ -179,7 +180,6 @@ btn.textContent = ‘Send My Report’;
 });
 
 // ── RUN ANALYSIS ──
-const MAX_FREE_SEARCHES = 5;
 
 async function run(query) {
 // ── SEARCH LIMIT GATE ──
