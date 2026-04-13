@@ -51,7 +51,6 @@ Return ONLY a valid JSON object. No markdown, no preamble:
   "summary_note": "<One sharp sentence a seasoned editor would write. Reference something specific. Max 20 words.>"
 }
 
-RULES — violating these makes the output useless:
 - positive_score + negative_score + neutral_score = exactly 100
 - NEVER use 80/10/10, 70/20/10 or other suspiciously round splits — derive scores from actual public opinion
 - Include exactly 6 source_voices, mix of sentiments reflecting reality
