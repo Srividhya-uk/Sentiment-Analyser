@@ -1,76 +1,95 @@
 export default async function handler(req, res) {
-  // Handle CORS preflight
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  const groqKey = process.env.GROQ_API_KEY;
+  const serpKey = process.env.SERP_API_KEY;
 
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
+  if (!groqKey) return res.status(500).json({ error: 'Groq API key not configured' });
 
   const { query } = req.body;
-  if (!query) {
-    return res.status(400).json({ error: 'No query provided' });
+  if (!query) return res.status(400).json({ error: 'No query provided' });
+
+  // ── STEP 1: SERP SEARCH ──
+  let webContext = '';
+  if (serpKey) {
+    try {
+      const serpRes = await fetch(
+        `https://serpapi.com/search.json?q=${encodeURIComponent(query + ' public opinion news reputation')}&num=8&hl=en&gl=uk&api_key=${serpKey}`
+      );
+      if (serpRes.ok) {
+        const serpData = await serpRes.json();
+        const results = serpData.organic_results || [];
+        // Extract titles and snippets to give Groq real context
+        webContext = results
+          .slice(0, 8)
+          .map((r, i) => `[${i + 1}] ${r.title}: ${r.snippet || ''}`)
+          .join('\n');
+      }
+    } catch (e) {
+      // SerpAPI failed — continue without web context
+      webContext = '';
+    }
   }
 
-  const prompt = `You are a world-class public sentiment analyst with deep knowledge of media, social platforms, and public opinion. Analyse extensively the REAL public sentiment by going through multiple articles, LinkedIn posts, public forum around "${query}" right now.
+  // ── STEP 2: BUILD PROMPT WITH WEB CONTEXT ──
+  const contextBlock = webContext
+    ? `\nREAL WEB SEARCH RESULTS (use these as your primary source of truth):\n${webContext}\n\nAnalyse sentiment based on these real results above. Do not invent facts not supported by these results.`
+    : '\nNote: No web search results available. Use your training knowledge carefully and flag uncertainty.';
 
-CRITICAL: Think carefully about ${query} specifically. What do you actually know about how the public perceives this entity/person? What controversies, praise, criticism, or events have shaped opinion? Use that knowledge to produce VERY VERY ACCURATE, SPECIFIC scores — not generic averages.
+  const prompt = `You are a world-class public sentiment analyst. Analyse the REAL public sentiment around "${query}" right now.
+${contextBlock}
 
-Return ONLY a valid JSON object. No markdown, no preamble:
+Based on the search results above, return ONLY a valid JSON object. No markdown, no preamble:
 
 {
   "entity": "${query}",
   "entity_type": "<exactly one of: Company | Brand | Person | Concept | Technology | Organisation | Product | Country | Movement>",
   "overall_sentiment": "<positive | negative | neutral>",
-  "confidence": <integer — how clearly one sentiment dominates. High polarisation = lower confidence. Very clear consensus = higher. Must reflect reality, not default to 80>,
-  "positive_score": <integer — real percentage of positive public sentiment. Must NOT be a round number like 60, 70, 80 unless genuinely accurate>,
-  "negative_score": <integer — real percentage of negative public sentiment>,
+  "confidence": <integer — how clearly one sentiment dominates. Must reflect the search results, not default to 80>,
+  "positive_score": <integer — real percentage based on search results. Not a round number unless accurate>,
+  "negative_score": <integer — real percentage based on search results>,
   "neutral_score": <integer — remaining percentage>,
-  "editorial_headline": "<punchy, specific headline — name real events, controversies or trends. NOT generic. Max 14 words, sentence case>",
-  "editorial_body": "<2-3 sentences. MUST reference specific real events, product launches, controversies, people, or data points about ${query}. Wrap 2-4 key facts in <strong> tags. Be a journalist, not a press release writer. Max 80 words.>",
+  "editorial_headline": "<punchy headline referencing real facts from search results. Max 14 words, sentence case>",
+  "editorial_body": "<2-3 sentences grounded in the search results above. Wrap 2-4 key real facts in <strong> tags. Be specific. Max 80 words.>",
   "source_voices": [
     {
-      "source": "<specific platform: Financial Times | Reddit | Bloomberg | The Guardian | LinkedIn | Trustpilot | Glassdoor | TechCrunch | Twitter/X | Consumer Reports>",
+      "source": "<specific platform: Financial Times | Reddit | Bloomberg | The Guardian | LinkedIn | Trustpilot | Glassdoor | TechCrunch | Twitter/X | BBC>",
       "sentiment": "<positive | negative | neutral>",
-      "quote": "<write what that specific audience ACTUALLY says about ${query} — reference real concerns or praise. Max 28 words. Sound like a real person, not a survey.>",
-      "audience": "<specific audience: Retail Investors | Gen Z Users | Enterprise Customers | Former Employees | Industry Analysts>"
+      "quote": "<realistic paraphrase of what that audience actually says based on search results. Max 28 words.>",
+      "audience": "<specific audience type>"
     }
   ],
-  "positive_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
-  "negative_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
-  "summary_note": "<One sharp sentence a seasoned editor would write. Reference something specific. Max 20 words.>"
+  "positive_themes": ["<specific theme from search results>", "<theme>", "<theme>", "<theme>"],
+  "negative_themes": ["<specific theme from search results>", "<theme>", "<theme>", "<theme>"],
+  "summary_note": "<One sharp editorial sentence referencing a specific real fact from search results. Max 20 words.>"
 }
 
+RULES:
 - positive_score + negative_score + neutral_score = exactly 100
-- NEVER use 80/10/10, 70/20/10 or other suspiciously round splits — derive scores from actual public opinion
-- Include exactly 6 source_voices, mix of sentiments reflecting reality
-- Confidence must reflect genuine certainty, not default to 80
-- Every field must be specific to ${query}, never generic filler
-- summary_note must name something real and specific about ${query}`;
+- Derive all scores from the actual search results provided, not from assumptions
+- Include exactly 6 source_voices with realistic mix of sentiments
+- Never invent facts not supported by search results
+- summary_note must reference something specific from the search results`;
 
+  // ── STEP 3: GROQ ANALYSIS ──
   try {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${groqKey}`
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [
           {
             role: 'system',
-            content: 'You are a world-class public sentiment analyst. You return only valid JSON, never markdown, never explanation, never preamble.'
+            content: 'You are a world-class public sentiment analyst. You return only valid JSON based strictly on the web search results provided. Never invent facts.'
           },
           {
             role: 'user',
@@ -92,35 +111,25 @@ Return ONLY a valid JSON object. No markdown, no preamble:
     const data = await response.json();
     const text = data.choices?.[0]?.message?.content || '';
 
-    // Clean markdown fences
     let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Extract JSON object
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Could not parse model response', raw: text });
     }
 
     let jsonStr = jsonMatch[0];
-
-    // Repair common JSON issues from LLM output:
-    // 1. Remove trailing commas before ] or }
     jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
-    // 2. Fix unescaped newlines inside strings
     jsonStr = jsonStr.replace(/:\s*"([^"]*)\n([^"]*)"/g, ': "$1 $2"');
-    // 3. Truncate if model hit token limit mid-array — close open structures
+
     try {
       JSON.parse(jsonStr);
     } catch(e) {
-      // Try to close any open arrays/objects by counting brackets
       const opens = (jsonStr.match(/\[/g) || []).length;
       const closes = (jsonStr.match(/\]/g) || []).length;
       const openBrace = (jsonStr.match(/\{/g) || []).length;
       const closeBrace = (jsonStr.match(/\}/g) || []).length;
-      // Remove last incomplete element (trailing comma or partial string)
       jsonStr = jsonStr.replace(/,\s*$/, '');
       jsonStr = jsonStr.replace(/,\s*"[^"]*$/, '');
-      // Close missing brackets
       for (let i = 0; i < opens - closes; i++) jsonStr += ']';
       for (let i = 0; i < openBrace - closeBrace; i++) jsonStr += '}';
     }
