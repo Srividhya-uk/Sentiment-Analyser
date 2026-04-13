@@ -257,29 +257,38 @@ async function buildPDF(contact, result) {
   return Buffer.from(pdfBytes);
 }
 
-module.exports = async function handler(req, res) {
-  // Handle CORS preflight
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Content-Type': 'application/json'
+};
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+exports.handler = async function(event, context) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: CORS_HEADERS, body: '' };
   }
 
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
-    return res.status(500).json({ error: 'Email service not configured' });
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Email service not configured' }) };
   }
 
-  const { contact, result } = req.body;
+  let contact, result;
+  try {
+    const body = JSON.parse(event.body || '{}');
+    contact = body.contact;
+    result  = body.result;
+  } catch (e) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid request body' }) };
+  }
 
   if (!contact?.name || !contact?.email || !result) {
-    return res.status(400).json({ error: 'Missing contact details or report data' });
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Missing contact details or report data' }) };
   }
 
   try {
@@ -341,14 +350,13 @@ module.exports = async function handler(req, res) {
 
     if (emailError) {
       console.error('Resend error:', JSON.stringify(emailError));
-      return res.status(500).json({ error: 'Email failed: ' + (emailError.message || JSON.stringify(emailError)) });
+      return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Email failed: ' + (emailError.message || JSON.stringify(emailError)) }) };
     }
 
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    return res.status(200).json({ success: true, emailId: emailData?.id });
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ success: true, emailId: emailData?.id }) };
 
   } catch (err) {
     console.error('Contact handler error:', err);
-    return res.status(500).json({ error: err.message });
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: err.message }) };
   }
 }
