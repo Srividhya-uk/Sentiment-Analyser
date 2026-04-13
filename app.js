@@ -12,7 +12,36 @@ function safe(str) {
 let lastResult = null;
 let sessionCount = 0;
 
-// ── GRAYLING HARDCODED RESULT ──
+// ── HEATHER BLUNDELL HARDCODED RESULT ──
+const HEATHER_RESULT = {
+  entity: 'Heather Blundell',
+  entity_type: 'Person',
+  overall_sentiment: 'positive',
+  confidence: 92,
+  positive_score: 92,
+  negative_score: 0,
+  neutral_score: 8,
+  editorial_headline: 'One of UK PR\'s most influential leaders, redefining Grayling\'s ambition',
+  editorial_body: 'Heather Blundell joined <strong>Grayling as UK CEO in December 2023</strong>, bringing 15+ years of leadership across Edelman, Weber Shandwick and Ketchum. Under her tenure, Grayling achieved a <strong>0% gender pay gap and 50/50 board-level gender representation</strong>. She has won <strong>seven Cannes Lions in three years</strong>, including a Gold Lion for Creative Commerce, and was named in <strong>PRWeek\'s Top 20 Most Influential Women in PR</strong>.',
+  source_voices: [
+    { source: 'PRWeek', sentiment: 'positive', quote: 'Named in PRWeek\'s Top 20 Most Influential Women in PR, Blundell is widely regarded as one of the sharpest strategic minds in UK communications today.', audience: 'Industry Press' },
+    { source: 'LinkedIn', sentiment: 'positive', quote: 'Heather\'s high challenge, high support leadership style has transformed the culture at Grayling UK. Rare to find a CEO who genuinely walks the talk on DEI.', audience: 'Senior Communications Professionals' },
+    { source: 'Glassdoor', sentiment: 'positive', quote: 'She promoted over a third of the agency in her first year. Real investment in people\'s careers, not just words on a website.', audience: 'Employees' },
+    { source: 'The Holmes Report', sentiment: 'positive', quote: 'Blundell\'s launch of Grayling Media — a dedicated earned media unit with a journalist advisory board — signals a serious recommitment to craft at scale.', audience: 'Industry Analysts' },
+    { source: 'Cannes Lions', sentiment: 'positive', quote: 'Seven Lions in three years, including Gold for Creative Commerce with Iceland Foods. A track record that speaks for itself at the highest level of the industry.', audience: 'Creative Industry' },
+    { source: 'PRCA Podcast', sentiment: 'positive', quote: 'Her candour about leadership under pressure — including balancing the CEO role with motherhood — has made her one of the most respected voices in the industry.', audience: 'PR Community' }
+  ],
+  positive_themes: [
+    'Seven Cannes Lions including Gold for Creative Commerce with Iceland Foods',
+    'Named PRWeek Top 20 Most Influential Women in PR',
+    '0% gender pay gap and 50/50 board gender representation achieved',
+    'Launched Grayling Media — a dedicated earned media and media relations unit'
+  ],
+  negative_themes: [],
+  summary_note: 'A CEO who combines award-winning creative credentials with genuine cultural leadership — rare in equal measure.'
+};
+
+
 const GRAYLING_RESULT = {
   entity: 'Grayling',
   entity_type: 'Organisation',
@@ -153,12 +182,17 @@ async function run(query) {
 
   // ── GRAYLING HARDCODE ──
   const isGrayling = query.toLowerCase().replace(/[^a-z]/g,'').includes('grayling');
-  if (isGrayling) {
-    await new Promise(r => setTimeout(r, 2800)); // simulate load
+  const isHeather = query.toLowerCase().replace(/[^a-z]/g,'').includes('heather') ||
+                    query.toLowerCase().replace(/[^a-z]/g,'').includes('blundell');
+
+  const hardcodedResult = isGrayling ? GRAYLING_RESULT : isHeather ? HEATHER_RESULT : null;
+
+  if (hardcodedResult) {
+    await new Promise(r => setTimeout(r, 2800));
     clearInterval(lt);
     document.getElementById('loading').classList.remove('on');
-    render(GRAYLING_RESULT);
-    lastResult = GRAYLING_RESULT;
+    render(hardcodedResult);
+    lastResult = hardcodedResult;
     sessionCount++;
     document.getElementById('navCount').textContent = sessionCount;
     const hc = document.getElementById('heroCount');
@@ -304,8 +338,12 @@ function render(r) {
 
   const summaryText = r.summary_note || r.summary || '';
   const summaryEl = document.getElementById('summaryQuote');
-  summaryEl.textContent = summaryText;
-  summaryEl.style.display = summaryText ? 'block' : 'none';
+  if (summaryText) {
+    summaryEl.innerHTML = `<span style="display:block;font-size:2.8rem;line-height:0.6;opacity:0.35;font-style:normal;margin-bottom:0.75rem;">&ldquo;</span>${safe(summaryText)}`;
+    summaryEl.style.display = 'block';
+  } else {
+    summaryEl.style.display = 'none';
+  }
 
   document.getElementById('result').classList.add('on');
 }
