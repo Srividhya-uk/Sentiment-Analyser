@@ -71,14 +71,14 @@ RULES:
   ],
   temperature: 0.2,
   max_tokens: 2048,
-  top_p: 0.9,
-  response_format: { type: ‘json_object’ }
+  top_p: 0.9
   })
   });
   
   if (!response.ok) {
   const err = await response.text();
-  return res.status(response.status).json({ error: ‘Groq API error’, detail: err });
+  console.error(‘Groq error:’, response.status, err);
+  return res.status(response.status).json({ error: ’Groq API error ’ + response.status, detail: err });
   }
   
   const data = await response.json();
