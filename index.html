@@ -1349,7 +1349,7 @@ document.getElementById('submitForm').addEventListener('click', async () => {
     const controller = new AbortController();
     const timeoutId  = setTimeout(() => controller.abort(), 15000);
 
-    const res = await fetch('/api/contact', {
+    const res = await fetch('/.netlify/functions/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1437,7 +1437,7 @@ async function run(query) {
   }
 
   try {
-    const res = await fetch('/api/analyse', {
+    const res = await fetch('/.netlify/functions/analyse', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query })
