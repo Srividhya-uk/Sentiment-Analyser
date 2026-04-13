@@ -1,11 +1,21 @@
 {
   "name": "grayling-sentiment-analyser",
   "version": "1.0.0",
+  "description": "Grayling AI Sentiment Intelligence tool. API routes deployed as Vercel serverless functions under /api/.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
   "dependencies": {
     "pdf-lib": "^1.17.1",
     "resend": "^6.10.0"
   },
   "engines": {
-    "node": "24.x"
+    "node": "20.x"
+  },
+  "notes": {
+    "deployment": "Deploy via Vercel. Set GROQ_API_KEY and RESEND_API_KEY as environment variables in the Vercel dashboard.",
+    "structure": "API handlers live in /api/analyse.js and /api/contact.js. index.html is served as the static frontend."
   }
 }
