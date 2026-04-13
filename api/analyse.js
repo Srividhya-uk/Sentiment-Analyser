@@ -68,11 +68,27 @@ For PRIVATE INDIVIDUALS with some public presence (professionals, executives, cr
 - Do not fabricate specific awards, statistics, or named incidents. Do generalise from their known professional domain and role.
 - negative_themes for private individuals should reflect realistic professional challenges or perception gaps in their field — not invented controversies.
 
+SCORING RULES — READ CAREFULLY:
+- positive_score + negative_score + neutral_score must equal exactly 100.
+- Do NOT default to round numbers or balanced splits like 40/30/30, 33/33/34, or 50/25/25. These are lazy defaults that do not reflect real public discourse.
+- Scores must reflect genuine asymmetry. Think carefully about what the actual balance of public opinion is for this specific entity.
+- Highly polarising or controversial figures will have one dominant score of 50 or above.
+- Broadly trusted or well-liked entities will have positive_score of 60 or above.
+- Crisis-affected or widely criticised entities will have negative_score of 50 or above.
+- Use specific, uneven numbers that reflect real signal — e.g. 62/28/10, 34/51/15, 71/8/21, 48/37/15.
+
+REFERENCE ANCHORS for calibration — match the entity to its real world equivalent:
+- Broadly loved consumer brand (e.g. Patagonia): ~72/8/20
+- Trusted global institution with some criticism (e.g. BBC): ~58/22/20
+- Highly polarising public figure (e.g. controversial CEO or politician): ~28/55/17
+- Solid mid-market brand, mixed reviews (e.g. average retailer): ~45/32/23
+- Private professional with strong network presence: ~55/12/33
+- Company facing active regulatory or PR crisis: ~20/65/15
+
 FOR ALL ENTITIES:
 - Do not fabricate specific events, statistics, or named incidents you cannot verify from widely known public record.
 - If uncertain about a specific detail, generalise it honestly rather than inventing it.
 - Do not leave negative_themes empty — every professional or public entity faces some form of scrutiny, competition, or perception challenge. Identify it honestly.
-- positive_score + negative_score + neutral_score must equal exactly 100.
 
 SOURCE VOICES:
 - Label by audience type appropriate to the entity: Industry Press, Employees, Customers, Investors, Regulators, General Public, Professional Network, Industry Peers, Clients, Published Work Audience.
@@ -119,6 +135,7 @@ Return a JSON object with exactly these fields:
 
 Hard rules:
 - positive_score + negative_score + neutral_score = 100 exactly
+- Do NOT use round balanced splits like 40/30/30 — use specific numbers that reflect the real asymmetry of this entity's public perception
 - source_voices: 4 to 6 entries, must include at least one critical or cautionary voice
 - negative_themes must always be populated — reflect real criticism, competitive pressure, perception gaps, or professional challenges
 - For private individuals: confidence between 45–65, frame around professional reputation not public fame
