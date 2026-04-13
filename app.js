@@ -268,14 +268,19 @@ function render(r) {
   `;
 
   // Themes — positive only, negative locked
-  document.getElementById('posThemes').innerHTML =
-    (r.positive_themes || []).map(t => `<li>${safe(t)}</li>`).join('');
-  document.getElementById('negThemes').innerHTML =
-    (r.negative_themes || []).length > 0
-      ? (r.negative_themes || []).map(() =>
-          `<li style="color:var(--rule)">&#128274; Included in full report</li>`
-        ).join('')
-      : `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
+  // Themes - handle both array and potential nested object from model
+  const posThemes = Array.isArray(r.positive_themes) ? r.positive_themes
+    : Array.isArray(r.themes?.positive) ? r.themes.positive : [];
+  const negThemes = Array.isArray(r.negative_themes) ? r.negative_themes
+    : Array.isArray(r.themes?.negative) ? r.themes.negative : [];
+
+  document.getElementById('posThemes').innerHTML = posThemes.length > 0
+    ? posThemes.map(t => `<li>${safe(String(t))}</li>`).join('')
+    : '<li style="color:var(--dim)">Analysis in progress...</li>';
+
+  document.getElementById('negThemes').innerHTML = negThemes.length > 0
+    ? negThemes.map(() => `<li style="color:var(--rule)">&#128274; Included in full report</li>`).join('')
+    : `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
 
   // Confidence bars
   const cb = document.getElementById('confBars');
@@ -297,7 +302,10 @@ function render(r) {
     : r.confidence >= 50 ? 'Moderate signal: mixed but discernible lean'
     : 'Fragmented discourse: no clear majority position';
 
-  document.getElementById('summaryQuote').textContent = r.summary_note || '';
+  const summaryText = r.summary_note || r.summary || '';
+  const summaryEl = document.getElementById('summaryQuote');
+  summaryEl.textContent = summaryText;
+  summaryEl.style.display = summaryText ? 'block' : 'none';
 
   document.getElementById('result').classList.add('on');
 }
