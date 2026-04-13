@@ -41,7 +41,7 @@ export default async function handler(req, res) {
     ? `\nREAL WEB SEARCH RESULTS (use these as your primary source of truth):\n${webContext}\n\nAnalyse sentiment based on these real results above. Do not invent facts not supported by these results.`
     : '\nNote: No web search results available. Use your training knowledge carefully and flag uncertainty.';
 
-  const prompt = `You are a world-class public sentiment analyst. Analyse the REAL public sentiment around "${query}" right now.
+  const prompt = `You are a world-class public sentiment analyst. Analyse extensively to figure the REAL public sentiment around "${query}" right now. Be very accurate and do not assume anything. Do not mix up with people/company.
 ${contextBlock}
 
 Based on the search results above, return ONLY a valid JSON object. No markdown, no preamble:
