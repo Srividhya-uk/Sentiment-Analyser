@@ -1,6 +1,6 @@
 // ── RATE LIMITER ──
 const RATE_LIMIT = 20;
-const WINDOW_MS  = 60 * 60 * 1000; // 1 hour
+const WINDOW_MS  = 60 * 60 * 1000;
 const ipStore    = new Map();
 
 function isRateLimited(ip) {
@@ -15,25 +15,43 @@ function isRateLimited(ip) {
   return false;
 }
 
-module.exports = async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Content-Type': 'application/json'
+};
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+exports.handler = async function(event, context) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: CORS_HEADERS, body: '' };
+  }
 
-  const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown')
-    .split(',')[0].trim();
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
+  }
+
+  const ip = (event.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
   if (isRateLimited(ip)) {
-    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    return { statusCode: 429, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Too many requests. Please try again later.' }) };
   }
 
   const groqKey = process.env.GROQ_API_KEY;
-  if (!groqKey) return res.status(500).json({ error: 'No API key' });
+  if (!groqKey) {
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: 'No API key configured' }) };
+  }
 
-  const query = req.body && req.body.query;
-  if (!query) return res.status(400).json({ error: 'No query' });
+  let query;
+  try {
+    const body = JSON.parse(event.body || '{}');
+    query = body.query;
+  } catch (e) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Invalid request body' }) };
+  }
+
+  if (!query) {
+    return { statusCode: 400, headers: CORS_HEADERS, body: JSON.stringify({ error: 'No query provided' }) };
+  }
 
   try {
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -73,7 +91,7 @@ Your scores must be derived entirely from your answers to the questions above �
 
 STEP 3 — CONFIDENCE:
 - Confidence must reflect how much genuine public signal exists for this specific entity.
-- A well-known controversial CEO: 80–90.
+- A well-known controversial public figure: 80–90.
 - A senior professional with solid LinkedIn presence and some press: 50–62.
 - A mid-level professional with limited public footprint: 45–52.
 - An emerging or junior figure with minimal public record: 38–47.
@@ -138,16 +156,16 @@ Hard rules:
 
     if (!groqRes.ok) {
       const errText = await groqRes.text();
-      return res.status(groqRes.status).json({ error: 'Groq error', detail: errText });
+      return { statusCode: groqRes.status, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Groq error', detail: errText }) };
     }
 
     const data = await groqRes.json();
     const content = data.choices[0].message.content;
     const clean = content.replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(clean);
-    return res.status(200).json(result);
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(result) };
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: err.message }) };
   }
 };
