@@ -10,7 +10,17 @@ function safe(str) {
 }
 
 let lastResult = null;
-let sessionCount = 0;
+let sessionCount = parseInt(localStorage.getItem('grayling_search_count') || '0', 10);
+
+// Initialise display on load
+window.addEventListener('load', () => {
+  document.getElementById('navCount').textContent = sessionCount;
+  document.getElementById('heroCount').textContent = sessionCount;
+  if (sessionCount > 0) document.getElementById('heroCount').classList.add('lit');
+  if (sessionCount >= MAX_FREE_SEARCHES) {
+    document.getElementById('navCount').style.color = 'var(--neg)';
+  }
+});
 
 // ── HEATHER BLUNDELL HARDCODED RESULT ──
 const HEATHER_RESULT = {
@@ -357,6 +367,7 @@ function render(r) {
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
 
 function updateCounter() {
+  localStorage.setItem('grayling_search_count', sessionCount);
   const hc = document.getElementById('heroCount');
   hc.textContent = sessionCount;
   hc.classList.add('lit');
