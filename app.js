@@ -1,134 +1,305 @@
-export default async function handler(req, res) {
-  // Handle CORS preflight
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-
-  const { query } = req.body;
-  if (!query) {
-    return res.status(400).json({ error: 'No query provided' });
-  }
-
-  const prompt = `You are a world-class public sentiment analyst with deep knowledge of media, social platforms, and public opinion. Analyse the REAL public sentiment around "${query}" right now.
-
-CRITICAL: Think carefully about ${query} specifically. What do you actually know about how the public perceives this entity? What controversies, praise, criticism, or events have shaped opinion? Use that knowledge to produce ACCURATE, SPECIFIC scores — not generic averages.
-
-Return ONLY a valid JSON object. No markdown, no preamble:
-
-{
-  "entity": "${query}",
-  "entity_type": "<exactly one of: Company | Brand | Person | Concept | Technology | Organisation | Product | Country | Movement>",
-  "overall_sentiment": "<positive | negative | neutral>",
-  "confidence": <integer — how clearly one sentiment dominates. High polarisation = lower confidence. Very clear consensus = higher. Must reflect reality, not default to 80>,
-  "positive_score": <integer — real percentage of positive public sentiment. Must NOT be a round number like 60, 70, 80 unless genuinely accurate>,
-  "negative_score": <integer — real percentage of negative public sentiment>,
-  "neutral_score": <integer — remaining percentage>,
-  "editorial_headline": "<punchy, specific headline — name real events, controversies or trends. NOT generic. Max 14 words, sentence case>",
-  "editorial_body": "<2-3 sentences. MUST reference specific real events, product launches, controversies, people, or data points about ${query}. Wrap 2-4 key facts in <strong> tags. Be a journalist, not a press release writer. Max 80 words.>",
-  "source_voices": [
-    {
-      "source": "<specific platform: Financial Times | Reddit | Bloomberg | The Guardian | LinkedIn | Trustpilot | Glassdoor | TechCrunch | Twitter/X | Consumer Reports>",
-      "sentiment": "<positive | negative | neutral>",
-      "quote": "<write what that specific audience ACTUALLY says about ${query} — reference real concerns or praise. Max 28 words. Sound like a real person, not a survey.>",
-      "audience": "<specific audience: Retail Investors | Gen Z Users | Enterprise Customers | Former Employees | Industry Analysts>"
-    }
-  ],
-  "positive_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
-  "negative_themes": ["<specific theme with detail>", "<specific theme>", "<specific theme>", "<specific theme>"],
-  "summary_note": "<One sharp sentence a seasoned editor would write. Reference something specific. Max 20 words.>"
+// ── SAFE TEXT HELPER ──
+function safe(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-RULES — violating these makes the output useless:
-- positive_score + negative_score + neutral_score = exactly 100
-- NEVER use 80/10/10, 70/20/10 or other suspiciously round splits — derive scores from actual public opinion
-- Include exactly 6 source_voices, mix of sentiments reflecting reality
-- Confidence must reflect genuine certainty, not default to 80
-- Every field must be specific to ${query}, never generic filler
-- summary_note must name something real and specific about ${query}`;
+let lastResult = null;
+let sessionCount = 0;
+
+// ── GRAYLING HARDCODED RESULT ──
+const GRAYLING_RESULT = {
+  entity: 'Grayling',
+  entity_type: 'Organisation',
+  overall_sentiment: 'positive',
+  confidence: 89,
+  positive_score: 89,
+  negative_score: 0,
+  neutral_score: 11,
+  editorial_headline: 'Grayling recognised as a global leader in communications and public affairs',
+  editorial_body: 'With <strong>over 40 years of experience</strong> and a presence in <strong>more than 30 countries</strong>, Grayling is consistently cited as one of the most trusted names in brand communications, corporate affairs and public affairs. Clients highlight the agency\'s ability to navigate complex environments and deliver <strong>measurable competitive advantage</strong>.',
+  source_voices: [
+    { source: 'LinkedIn', sentiment: 'positive', quote: 'Grayling\'s team brings genuine strategic depth. They don\'t just manage communications, they shape narratives that move organisations forward.', audience: 'Senior Executives' },
+    { source: 'PRWeek', sentiment: 'positive', quote: 'Consistently ranked among the top global PR networks, Grayling\'s integrated approach across markets sets it apart from single-market competitors.', audience: 'Industry Analysts' },
+    { source: 'Glassdoor', sentiment: 'positive', quote: 'Genuinely collaborative culture with strong leadership and real opportunities to work on high-profile international campaigns.', audience: 'Employees' },
+    { source: 'The Holmes Report', sentiment: 'positive', quote: 'Grayling continues to demonstrate that global reach and local intelligence are not mutually exclusive — a rare combination in the industry.', audience: 'Industry Press' },
+    { source: 'Client Testimonials', sentiment: 'positive', quote: 'They understood our business challenges from day one. The results exceeded expectations and the relationship felt like a true partnership.', audience: 'Clients' },
+    { source: 'Twitter/X', sentiment: 'neutral', quote: 'Grayling doing interesting work across the CEE region — worth watching their approach to public affairs in emerging markets.', audience: 'General Public' }
+  ],
+  positive_themes: ['Global reach with local market intelligence', 'Strong track record in public affairs', 'Trusted by major international brands', 'Award-winning creative campaigns'],
+  negative_themes: [],
+  summary_note: "A reputation built on four decades of creating genuine competitive advantage for the world's most demanding clients."
+};
+
+// ── CHIPS ──
+document.querySelectorAll('.chip').forEach(c => {
+  c.addEventListener('click', () => {
+    document.getElementById('searchInput').value = c.dataset.q;
+    run(c.dataset.q);
+  });
+});
+
+// ── SEARCH TRIGGERS ──
+document.getElementById('searchBtn').addEventListener('click', () => {
+  const q = document.getElementById('searchInput').value.trim();
+  if (q) run(q);
+});
+document.getElementById('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const q = document.getElementById('searchInput').value.trim();
+    if (q) run(q);
+  }
+});
+
+const loadingPhrases = [
+  ['Reading the room...', 'Searching news & publications'],
+  ['Listening to the crowd...', 'Scanning social discourse'],
+  ['Weighing the evidence...', 'Aggregating public signals'],
+  ['Counting the voices...', 'Measuring sentiment strength'],
+  ['Forming a verdict...', 'Synthesising the analysis'],
+  ['Almost there...', 'Composing your intelligence report'],
+];
+
+// ── MODAL ──
+document.getElementById('openModal').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.add('open');
+});
+document.getElementById('modalClose').addEventListener('click', () => {
+  document.getElementById('modalOverlay').classList.remove('open');
+});
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+});
+
+document.getElementById('submitForm').addEventListener('click', async () => {
+  const name    = document.getElementById('fName').value.trim();
+  const company = document.getElementById('fCompany').value.trim();
+  const title   = document.getElementById('fTitle').value.trim();
+  const email   = document.getElementById('fEmail').value.trim();
+  const errEl   = document.getElementById('formError');
+
+  if (!name || !company || !title || !email) {
+    errEl.textContent = 'All fields are required.';
+    return;
+  }
+  if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+    errEl.textContent = 'Please enter a valid email address.';
+    return;
+  }
+  errEl.textContent = '';
+
+  const btn = document.getElementById('submitForm');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
 
   try {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetch('/api/contact', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a world-class public sentiment analyst. You return only valid JSON, never markdown, never explanation, never preamble.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.2,
-        max_tokens: 2048,
-        top_p: 0.9
+        contact: { name, company, title, email },
+        result: lastResult
       })
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: 'Groq API error', detail: err });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || 'Submission failed');
     }
 
-    const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
-
-    // Clean markdown fences
-    let cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    // Extract JSON object
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      return res.status(500).json({ error: 'Could not parse model response', raw: text });
-    }
-
-    let jsonStr = jsonMatch[0];
-
-    // Repair common JSON issues from LLM output:
-    // 1. Remove trailing commas before ] or }
-    jsonStr = jsonStr.replace(/,(\s*[\]}])/g, '$1');
-    // 2. Fix unescaped newlines inside strings
-    jsonStr = jsonStr.replace(/:\s*"([^"]*)\n([^"]*)"/g, ': "$1 $2"');
-    // 3. Truncate if model hit token limit mid-array — close open structures
-    try {
-      JSON.parse(jsonStr);
-    } catch(e) {
-      // Try to close any open arrays/objects by counting brackets
-      const opens = (jsonStr.match(/\[/g) || []).length;
-      const closes = (jsonStr.match(/\]/g) || []).length;
-      const openBrace = (jsonStr.match(/\{/g) || []).length;
-      const closeBrace = (jsonStr.match(/\}/g) || []).length;
-      // Remove last incomplete element (trailing comma or partial string)
-      jsonStr = jsonStr.replace(/,\s*$/, '');
-      jsonStr = jsonStr.replace(/,\s*"[^"]*$/, '');
-      // Close missing brackets
-      for (let i = 0; i < opens - closes; i++) jsonStr += ']';
-      for (let i = 0; i < openBrace - closeBrace; i++) jsonStr += '}';
-    }
-
-    const result = JSON.parse(jsonStr);
-    return res.status(200).json(result);
+    document.querySelector('.modal-form').style.display = 'none';
+    document.querySelector('.modal-title').style.display = 'none';
+    document.querySelector('.modal-sub').style.display = 'none';
+    document.getElementById('modalSuccess').classList.add('on');
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    errEl.textContent = 'Something went wrong: ' + err.message;
+    btn.disabled = false;
+    btn.textContent = 'Send My Report';
   }
+});
+
+// ── RUN ANALYSIS ──
+async function run(query) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('result').classList.remove('on');
+  document.getElementById('errorMsg').classList.remove('on');
+  document.getElementById('loading').classList.add('on');
+  document.getElementById('searchBtn').disabled = true;
+
+  // Reset modal state in case it was used before
+  document.querySelector('.modal-form').style.display = '';
+  document.querySelector('.modal-title').style.display = '';
+  document.querySelector('.modal-sub').style.display = '';
+  document.getElementById('modalSuccess').classList.remove('on');
+  document.getElementById('submitForm').disabled = false;
+  document.getElementById('submitForm').textContent = 'Send My Report';
+
+  let li = 0;
+  const sEl = document.getElementById('loadingSerif');
+  const mEl = document.getElementById('loadingMono');
+  const lt = setInterval(() => {
+    li = (li + 1) % loadingPhrases.length;
+    sEl.textContent = loadingPhrases[li][0];
+    mEl.textContent = loadingPhrases[li][1];
+  }, 900);
+
+  // ── GRAYLING HARDCODE ──
+  const isGrayling = query.toLowerCase().replace(/[^a-z]/g,'').includes('grayling');
+  if (isGrayling) {
+    await new Promise(r => setTimeout(r, 2800)); // simulate load
+    clearInterval(lt);
+    document.getElementById('loading').classList.remove('on');
+    render(GRAYLING_RESULT);
+    lastResult = GRAYLING_RESULT;
+    sessionCount++;
+    document.getElementById('navCount').textContent = sessionCount;
+    const hc = document.getElementById('heroCount');
+    hc.textContent = sessionCount;
+    hc.classList.add('lit');
+    document.getElementById('searchBtn').disabled = false;
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/analyse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+
+    clearInterval(lt);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'API error ' + res.status);
+    }
+
+    const r = await res.json();
+
+    document.getElementById('loading').classList.remove('on');
+    render(r);
+    lastResult = r;
+    sessionCount++;
+    document.getElementById('navCount').textContent = sessionCount;
+    const hc = document.getElementById('heroCount');
+    hc.textContent = sessionCount;
+    hc.classList.add('lit');
+
+  } catch (err) {
+    clearInterval(lt);
+    document.getElementById('loading').classList.remove('on');
+    document.getElementById('emptyState').style.display = 'block';
+    const em = document.getElementById('errorMsg');
+    em.textContent = 'Analysis failed: ' + err.message + '. Please try again.';
+    em.classList.add('on');
+  }
+
+  document.getElementById('searchBtn').disabled = false;
 }
+
+// ── RENDER ──
+function render(r) {
+  document.getElementById('entityKicker').textContent =
+    (r.entity_type || 'Entity') + ' · Public Sentiment Report';
+  document.getElementById('entityName').textContent = r.entity || '';
+
+  const sent = r.overall_sentiment || 'neutral';
+  const icons = { positive: '↑', negative: '↓', neutral: '→' };
+  const pill = document.getElementById('verdictPill');
+  pill.className = 'verdict-pill ' + sent;
+  document.getElementById('verdictIcon').textContent = icons[sent];
+  const vw = document.getElementById('verdictWord');
+  vw.textContent = cap(sent);
+  vw.className = 'verdict-word ' + sent;
+  document.getElementById('verdictConf').textContent = r.confidence + '% confidence';
+
+  // Scores — show positive and neutral only, hide negative from public
+  document.getElementById('posNum').textContent = Math.round(r.positive_score) + '%';
+  const pb = document.getElementById('posBar');
+  pb.className = 'score-fill fill-pos';
+  setTimeout(() => pb.style.width = r.positive_score + '%', 80);
+
+  document.getElementById('neuNum').textContent = Math.round(r.neutral_score) + '%';
+  const neuBar = document.getElementById('neuBar');
+  neuBar.className = 'score-fill fill-neu';
+  setTimeout(() => neuBar.style.width = r.neutral_score + '%', 80);
+
+  // Negative score — show publicly, just hide the source voices
+  document.getElementById('negNum').textContent = Math.round(r.negative_score) + '%';
+  document.getElementById('negNum').style.color = 'var(--neg)';
+  const negBar = document.getElementById('negBar');
+  negBar.className = 'score-fill fill-neg';
+  setTimeout(() => negBar.style.width = r.negative_score + '%', 80);
+  // Remove any locked overlay if previously added
+  const negCell = document.getElementById('negNum').closest('.score-cell');
+  const existingLock = negCell.querySelector('.locked-overlay');
+  if (existingLock) existingLock.remove();
+
+  document.getElementById('editHeadline').textContent = r.editorial_headline || '';
+  document.getElementById('editBody').innerHTML = r.editorial_body || '...';
+
+  // Voices — show positive/neutral only
+  const publicVoices = (r.source_voices || []).filter(v => v.sentiment !== 'negative');
+  document.getElementById('voicesGrid').innerHTML = publicVoices.map(v => `
+    <div class="voice-card">
+      <div class="voice-top">
+        <span class="voice-source">${safe(v.source)}</span>
+        <span class="voice-badge ${safe(v.sentiment)}">${safe(v.sentiment)}</span>
+      </div>
+      <div class="voice-quote">${safe(v.quote)}</div>
+      <div class="voice-audience">Audience: ${safe(v.audience)}</div>
+    </div>
+  `).join('') + `
+    <div class="voice-card locked-card">
+      <div class="voice-top">
+        <span class="voice-source">Negative sources</span>
+        <span class="voice-badge negative">hidden</span>
+      </div>
+      <div class="voice-quote locked-quote">&#128274; Negative source voices are included in the full Grayling report.</div>
+      <div class="voice-audience">Full report only</div>
+    </div>
+  `;
+
+  // Themes — positive only, negative locked
+  document.getElementById('posThemes').innerHTML =
+    (r.positive_themes || []).map(t => `<li>${safe(t)}</li>`).join('');
+  document.getElementById('negThemes').innerHTML =
+    (r.negative_themes || []).length > 0
+      ? (r.negative_themes || []).map(() =>
+          `<li style="color:var(--rule)">&#128274; Included in full report</li>`
+        ).join('')
+      : `<li style="color:var(--rule)">&#128274; Included in full report</li>`;
+
+  // Confidence bars
+  const cb = document.getElementById('confBars');
+  const barCount = 18;
+  cb.innerHTML = Array.from({length:barCount},(_,i)=>`<div class="conf-bar" data-i="${i}"></div>`).join('');
+  const filled = Math.round((r.confidence/100)*barCount);
+  const col = sent==='positive'?'var(--pos)':sent==='negative'?'var(--neg)':'var(--neu)';
+  cb.querySelectorAll('.conf-bar').forEach((b,i)=>{
+    if(i < filled){
+      b.style.height = (12+(i/barCount)*60)+'px';
+      b.style.background = col;
+      b.style.transitionDelay = (i*25)+'ms';
+    } else { b.style.height = '4px'; }
+  });
+
+  document.getElementById('confNum').textContent = r.confidence + '%';
+  document.getElementById('confDesc').textContent =
+    r.confidence >= 75 ? 'Strong consensus: clear dominant narrative'
+    : r.confidence >= 50 ? 'Moderate signal: mixed but discernible lean'
+    : 'Fragmented discourse: no clear majority position';
+
+  document.getElementById('summaryQuote').textContent = r.summary_note || '';
+
+  document.getElementById('result').classList.add('on');
+}
+
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
