@@ -166,7 +166,8 @@ Hard rules:
 
     if (!groqRes.ok) {
       const errText = await groqRes.text();
-      return { statusCode: groqRes.status, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Groq error', detail: errText }) };
+      console.error('Groq error:', groqRes.status, errText);
+      return { statusCode: groqRes.status, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Groq error', status: groqRes.status, detail: errText }) };
     }
 
     const data = await groqRes.json();
