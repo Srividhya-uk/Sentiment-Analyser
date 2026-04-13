@@ -1276,14 +1276,26 @@ document.querySelectorAll('.chip').forEach(c => {
 // ── SEARCH TRIGGERS ──
 document.getElementById('searchBtn').addEventListener('click', () => {
   const q = document.getElementById('searchInput').value.trim();
+  if (q === '558') { resetCount(); return; }
   if (q) run(q);
 });
 document.getElementById('searchInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     const q = document.getElementById('searchInput').value.trim();
+    if (q === '558') { resetCount(); return; }
     if (q) run(q);
   }
 });
+
+function resetCount() {
+  sessionCount = 0;
+  localStorage.removeItem('grayling_search_count');
+  document.getElementById('searchInput').value = '';
+  document.getElementById('navCount').textContent = '0';
+  document.getElementById('navCount').style.color = '';
+  document.getElementById('heroCount').textContent = '0';
+  document.getElementById('heroCount').classList.remove('lit');
+}
 
 
 const loadingPhrases = [
