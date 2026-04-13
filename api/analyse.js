@@ -19,32 +19,70 @@ export default async function handler(req, res) {
   if (serpKey) {
     try {
       const serpRes = await fetch(
-        `https://serpapi.com/search.json?q=${encodeURIComponent(query + ' about')}&num=8&hl=en&gl=uk&api_key=${serpKey}`
+        `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&num=10&hl=en&gl=uk&api_key=${serpKey}`
       );
       if (serpRes.ok) {
         const serpData = await serpRes.json();
-        const results = serpData.organic_results || [];
-        // Extract titles and snippets to give Groq real context
-        webContext = results
-          .slice(0, 8)
-          .map((r, i) => `[${i + 1}] ${r.title}: ${r.snippet || ''}`)
-          .join('\n');
+        const results = [
+          ...(serpData.organic_results || []),
+          ...(serpData.news_results || [])
+        ].slice(0, 10);
+
+        if (results.length > 0) {
+          webContext = results
+            .map((r, i) => `[${i + 1}] ${r.title} (${r.source || r.displayed_link || 'web'}): ${r.snippet || r.description || ''}`)
+            .join('\n');
+        }
       }
     } catch (e) {
-      // SerpAPI failed — continue without web context
       webContext = '';
     }
   }
 
-  // ── STEP 2: BUILD PROMPT WITH WEB CONTEXT ──
-  const contextBlock = webContext
-    ? `\nREAL WEB SEARCH RESULTS (use these as your primary source of truth):\n${webContext}\n\nAnalyse sentiment based on these real results above. Do not invent facts not supported by these results.`
-    : '\nNote: No web search results available. Use your training knowledge carefully and flag uncertainty.';
+  // ── STEP 2: BUILD PROMPT ──
+  const hasContext = webContext.trim().length > 0;
+  const contextBlock = hasContext
+    ? `\nWEB SEARCH RESULTS for "${query}":\n${webContext}`
+    : `\nNo web results found for "${query}".`;
 
-  const prompt = `You are a world-class public sentiment analyst. Analyse extensively to figure the REAL public sentiment around "${query}" right now.
+  const prompt = `You are a world-class public sentiment analyst. Using the web search results below, analyse what the public search data reveals about "${query}".
+
 ${contextBlock}
 
-Based on the search results above, return ONLY a valid JSON object. No markdown, no preamble:
+Your job: read the search results and determine what overall sentiment the public has toward "${query}" based purely on what these results show. The results are the voice of public opinion — news coverage, reviews, discussions, and commentary all signal how people feel.
+
+If the results show no meaningful public profile (private individual, unknown entity), say so honestly in editorial_body and return low confidence neutral scores.
+
+Return ONLY a valid JSON object. No markdown, no preamble:
+
+{
+  "entity": "${query}",
+  "entity_type": "<exactly one of: Company | Brand | Person | Concept | Technology | Organisation | Product | Country | Movement>",
+  "overall_sentiment": "<positive | negative | neutral>",
+  "confidence": <integer 0-100 — how clearly the search results signal one sentiment>,
+  "positive_score": <integer — percentage of positive signals in search results>,
+  "negative_score": <integer — percentage of negative signals in search results>,
+  "neutral_score": <integer — percentage of neutral/factual signals>,
+  "editorial_headline": "<what the search results tell us about ${query} in max 14 words, sentence case>",
+  "editorial_body": "<2-3 sentences reading the search results as sentiment signals. Wrap 2-4 key facts in <strong> tags. Be specific about what the results show. Max 80 words.>",
+  "source_voices": [
+    {
+      "source": "<platform suggested by search results e.g. Reddit | Twitter/X | BBC | Guardian | TrustPilot | LinkedIn | YouTube | TechCrunch>",
+      "sentiment": "<positive | negative | neutral>",
+      "quote": "<what that audience is saying based on search result snippets. Max 28 words.>",
+      "audience": "<who is talking: Fans | Customers | Critics | General Public | Industry | Employees>"
+    }
+  ],
+  "positive_themes": ["<theme from results>", "<theme>", "<theme>", "<theme>"],
+  "negative_themes": ["<theme from results>", "<theme>", "<theme>", "<theme>"],
+  "summary_note": "<One sentence summarising what the search data reveals. Max 20 words.>"
+}
+
+RULES:
+- positive_score + negative_score + neutral_score = exactly 100
+- Scores must reflect the actual balance of the search results — not assumptions
+- Include exactly 6 source_voices derived from what the results suggest
+- Never invent facts not present in or implied by the search results`;
 
 {
   "entity": "${query}",
