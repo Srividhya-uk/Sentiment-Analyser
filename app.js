@@ -156,7 +156,19 @@ document.getElementById('submitForm').addEventListener('click', async () => {
 });
 
 // ── RUN ANALYSIS ──
+const MAX_FREE_SEARCHES = 5;
+
 async function run(query) {
+  // ── SEARCH LIMIT GATE ──
+  const isHardcoded = query.toLowerCase().replace(/[^a-z]/g,'').includes('grayling') ||
+                      query.toLowerCase().replace(/[^a-z]/g,'').includes('heather') ||
+                      query.toLowerCase().replace(/[^a-z]/g,'').includes('blundell');
+
+  if (!isHardcoded && sessionCount >= MAX_FREE_SEARCHES) {
+    showLimitModal();
+    return;
+  }
+
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('result').classList.remove('on');
   document.getElementById('errorMsg').classList.remove('on');
@@ -194,10 +206,7 @@ async function run(query) {
     render(hardcodedResult);
     lastResult = hardcodedResult;
     sessionCount++;
-    document.getElementById('navCount').textContent = sessionCount;
-    const hc = document.getElementById('heroCount');
-    hc.textContent = sessionCount;
-    hc.classList.add('lit');
+    updateCounter();
     document.getElementById('searchBtn').disabled = false;
     return;
   }
@@ -221,10 +230,7 @@ async function run(query) {
     render(r);
     lastResult = r;
     sessionCount++;
-    document.getElementById('navCount').textContent = sessionCount;
-    const hc = document.getElementById('heroCount');
-    hc.textContent = sessionCount;
-    hc.classList.add('lit');
+    updateCounter();
 
   } catch (err) {
     clearInterval(lt);
@@ -349,3 +355,39 @@ function render(r) {
 }
 
 function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1) : '...'; }
+
+function updateCounter() {
+  const hc = document.getElementById('heroCount');
+  hc.textContent = sessionCount;
+  hc.classList.add('lit');
+  const remaining = MAX_FREE_SEARCHES - sessionCount;
+  const navCount = document.getElementById('navCount');
+  navCount.textContent = sessionCount;
+  if (remaining <= 1 && remaining > 0) {
+    navCount.style.color = 'var(--neg)';
+    navCount.title = remaining + ' free search remaining';
+  } else if (remaining <= 0) {
+    navCount.style.color = 'var(--neg)';
+  }
+}
+
+function showLimitModal() {
+  // Switch modal to limit state
+  document.querySelector('.modal-title').textContent = 'You have used your 5 free searches.';
+  document.querySelector('.modal-sub').textContent = 'Contact Grayling to unlock unlimited access and receive a full intelligence report tailored to your needs.';
+  document.querySelector('.modal-form').style.display = 'none';
+  document.querySelector('.modal-footer-line').style.display = 'none';
+
+  // Show a contact Grayling button instead
+  const successEl = document.getElementById('modalSuccess');
+  successEl.innerHTML = `
+    <div style="text-align:center;padding:1rem 0">
+      <div style="font-family:var(--serif);font-weight:300;font-size:3rem;color:var(--accent);line-height:1;margin-bottom:1rem">5 / 5</div>
+      <div style="font-family:var(--mono);font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--dim);margin-bottom:2rem">Free searches used</div>
+      <a href="mailto:info@grayling.com" style="display:inline-block;background:var(--black);color:var(--white);font-family:var(--mono);font-size:0.62rem;letter-spacing:0.2em;text-transform:uppercase;padding:1rem 2.5rem;text-decoration:none;margin-bottom:1rem">Contact Grayling</a>
+      <div style="font-family:var(--mono);font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);margin-top:1rem">Public perception moves fast. Grayling helps you stay ahead of it, shape it, and turn it into advantage.</div>
+    </div>
+  `;
+  successEl.classList.add('on');
+  document.getElementById('modalOverlay').classList.add('open');
+}
