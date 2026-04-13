@@ -37,15 +37,15 @@ source_voices: [
 { source: ‘PRWeek’, sentiment: ‘positive’, quote: ‘Named in PRWeek's Top 20 Most Influential Women in PR, Blundell is widely regarded as one of the sharpest strategic minds in UK communications today.’, audience: ‘Industry Press’ },
 { source: ‘LinkedIn’, sentiment: ‘positive’, quote: ‘Heather's high challenge, high support leadership style has transformed the culture at Grayling UK. Rare to find a CEO who genuinely walks the talk on DEI.’, audience: ‘Senior Communications Professionals’ },
 { source: ‘Glassdoor’, sentiment: ‘positive’, quote: ‘She promoted over a third of the agency in her first year. Real investment in people's careers, not just words on a website.’, audience: ‘Employees’ },
-{ source: ‘The Holmes Report’, sentiment: ‘positive’, quote: ‘Blundell's launch of Grayling Media — a dedicated earned media unit with a journalist advisory board — signals a serious recommitment to craft at scale.’, audience: ‘Industry Analysts’ },
+{ source: ‘The Holmes Report’, sentiment: ‘positive’, quote: ‘Blundell's launch of Grayling Media , a dedicated earned media unit with a journalist advisory board , signals a serious recommitment to craft at scale.’, audience: ‘Industry Analysts’ },
 { source: ‘Cannes Lions’, sentiment: ‘positive’, quote: ‘Seven Lions in three years, including Gold for Creative Commerce with Iceland Foods. A track record that speaks for itself at the highest level of the industry.’, audience: ‘Creative Industry’ },
-{ source: ‘PRCA Podcast’, sentiment: ‘positive’, quote: ‘Her candour about leadership under pressure — including balancing the CEO role with motherhood — has made her one of the most respected voices in the industry.’, audience: ‘PR Community’ }
+{ source: ‘PRCA Podcast’, sentiment: ‘positive’, quote: ‘Her candour about leadership under pressure , including balancing the CEO role with motherhood , has made her one of the most respected voices in the industry.’, audience: ‘PR Community’ }
 ],
 positive_themes: [
 ‘Seven Cannes Lions including Gold for Creative Commerce with Iceland Foods’,
 ‘Named PRWeek Top 20 Most Influential Women in PR’,
 ‘0% gender pay gap and 50/50 board gender representation achieved’,
-‘Launched Grayling Media — a dedicated earned media and media relations unit’
+‘Launched Grayling Media , a dedicated earned media and media relations unit’
 ],
 negative_themes: [],
 summary_note: ‘A CEO who combines award-winning creative credentials with genuine cultural leadership, rare in equal measure.’
@@ -65,9 +65,9 @@ source_voices: [
 { source: ‘LinkedIn’, sentiment: ‘positive’, quote: ‘Grayling's team brings genuine strategic depth. They don't just manage communications, they shape narratives that move organisations forward.’, audience: ‘Senior Executives’ },
 { source: ‘PRWeek’, sentiment: ‘positive’, quote: ‘Consistently ranked among the top global PR networks, Grayling's integrated approach across markets sets it apart from single-market competitors.’, audience: ‘Industry Analysts’ },
 { source: ‘Glassdoor’, sentiment: ‘positive’, quote: ‘Genuinely collaborative culture with strong leadership and real opportunities to work on high-profile international campaigns.’, audience: ‘Employees’ },
-{ source: ‘The Holmes Report’, sentiment: ‘positive’, quote: ‘Grayling continues to demonstrate that global reach and local intelligence are not mutually exclusive — a rare combination in the industry.’, audience: ‘Industry Press’ },
+{ source: ‘The Holmes Report’, sentiment: ‘positive’, quote: ‘Grayling continues to demonstrate that global reach and local intelligence are not mutually exclusive , a rare combination in the industry.’, audience: ‘Industry Press’ },
 { source: ‘Client Testimonials’, sentiment: ‘positive’, quote: ‘They understood our business challenges from day one. The results exceeded expectations and the relationship felt like a true partnership.’, audience: ‘Clients’ },
-{ source: ‘Twitter/X’, sentiment: ‘neutral’, quote: ‘Grayling doing interesting work across the CEE region — worth watching their approach to public affairs in emerging markets.’, audience: ‘General Public’ }
+{ source: ‘Twitter/X’, sentiment: ‘neutral’, quote: ‘Grayling doing interesting work across the CEE region , worth watching their approach to public affairs in emerging markets.’, audience: ‘General Public’ }
 ],
 positive_themes: [‘Global reach with local market intelligence’, ‘Strong track record in public affairs’, ‘Trusted by major international brands’, ‘Award-winning creative campaigns’],
 negative_themes: [],
@@ -285,7 +285,7 @@ vw.textContent = cap(sent);
 vw.className = ’verdict-word ’ + sent;
 document.getElementById(‘verdictConf’).textContent = r.confidence + ‘% confidence’;
 
-// Scores — show positive and neutral only, hide negative from public
+// Scores , show positive and neutral only, hide negative from public
 document.getElementById(‘posNum’).textContent = Math.round(r.positive_score) + ‘%’;
 const pb = document.getElementById(‘posBar’);
 pb.className = ‘score-fill fill-pos’;
@@ -296,7 +296,7 @@ const neuBar = document.getElementById(‘neuBar’);
 neuBar.className = ‘score-fill fill-neu’;
 setTimeout(() => neuBar.style.width = r.neutral_score + ‘%’, 80);
 
-// Negative score — show publicly, just hide the source voices
+// Negative score , show publicly, just hide the source voices
 document.getElementById(‘negNum’).textContent = Math.round(r.negative_score) + ‘%’;
 document.getElementById(‘negNum’).style.color = ‘var(–neg)’;
 const negBar = document.getElementById(‘negBar’);
@@ -310,11 +310,11 @@ if (existingLock) existingLock.remove();
 document.getElementById(‘editHeadline’).textContent = r.editorial_headline || ‘’;
 document.getElementById(‘editBody’).innerHTML = r.editorial_body || ‘…’;
 
-// Voices — show positive/neutral only
+// Voices , show positive/neutral only
 const publicVoices = (r.source_voices || []).filter(v => v.sentiment !== ‘negative’);
 document.getElementById(‘voicesGrid’).innerHTML = publicVoices.map(v => `<div class="voice-card"> <div class="voice-top"> <span class="voice-source">${safe(v.source)}</span> <span class="voice-badge ${safe(v.sentiment)}">${safe(v.sentiment)}</span> </div> <div class="voice-quote">${safe(v.quote)}</div> <div class="voice-audience">Audience: ${safe(v.audience)}</div> </div>`).join(’’) + `<div class="voice-card locked-card"> <div class="voice-top"> <span class="voice-source">Negative sources</span> <span class="voice-badge negative">hidden</span> </div> <div class="voice-quote locked-quote">&#128274; Negative source voices are included in the full Grayling report.</div> <div class="voice-audience">Full report only</div> </div>`;
 
-// Themes — positive only, negative locked
+// Themes , positive only, negative locked
 // Themes - handle both array and potential nested object from model
 const posThemes = Array.isArray(r.positive_themes) ? r.positive_themes
 : Array.isArray(r.themes?.positive) ? r.themes.positive : [];
