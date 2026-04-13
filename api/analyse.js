@@ -14,7 +14,7 @@ if (!query) return res.status(400).json({ error: ‘No query provided’ });
 
 const prompt = `You are a world-class public sentiment analyst with comprehensive knowledge of media, culture, business, politics, music, sport, and current affairs up to early 2025.
 
-Analyse the genuine public sentiment around “${query}”. Draw on everything you know , news coverage, social media discourse, reviews, controversies, achievements, public reputation. Be specific and accurate.
+Analyse the genuine public sentiment around “${query}”. Draw on everything you know: news coverage, social media discourse, reviews, controversies, achievements, public reputation. Be specific and accurate.
 
 Return ONLY a valid JSON object. No markdown fences, no preamble, no trailing text:
 
@@ -44,10 +44,10 @@ Return ONLY a valid JSON object. No markdown fences, no preamble, no trailing te
 RULES:
 
 - positive_score + negative_score + neutral_score = exactly 100
-- Scores must reflect genuine public opinion , not safe round numbers
+- Scores must reflect genuine public opinion, not safe round numbers
 - Include exactly 6 source_voices with realistic mix of sentiments
 - If “${query}” is a private individual with no public profile, set confidence to 15, scores to 40/10/50, and note limited public footprint in editorial_body
-- Every field must be specific to “${query}” , no generic filler
+- Every field must be specific to “${query}”, no generic filler
 - Never invent facts you are not confident about`;
   
   try {
@@ -77,7 +77,6 @@ RULES:
   
   if (!response.ok) {
   const err = await response.text();
-  console.error(‘Groq error:’, response.status, err);
   return res.status(response.status).json({ error: ’Groq API error ’ + response.status, detail: err });
   }
   
