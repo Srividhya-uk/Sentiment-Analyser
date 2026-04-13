@@ -1,11 +1,7 @@
 {
   "name": "grayling-sentiment-analyser",
   "version": "1.0.0",
-  "description": "Grayling AI Public Sentiment Analyser powered by NVIDIA Nemotron",
-  "type": "module",
-  "scripts": {
-    "dev": "vercel dev"
-  },
+  "description": "Grayling AI Public Sentiment Analyser powered by Groq",
   "dependencies": {
     "pdf-lib": "^1.17.1",
     "resend": "^6.10.0"
