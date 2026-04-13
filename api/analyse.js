@@ -22,9 +22,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No query provided' });
   }
 
-  const prompt = `You are a world-class public sentiment analyst with deep knowledge of media, social platforms, and public opinion. Analyse the REAL public sentiment around "${query}" right now.
+  const prompt = `You are a world-class public sentiment analyst with deep knowledge of media, social platforms, and public opinion. Analyse extensively the REAL public sentiment by going through multiple articles, LinkedIn posts, public forum around "${query}" right now.
 
-CRITICAL: Think carefully about ${query} specifically. What do you actually know about how the public perceives this entity? What controversies, praise, criticism, or events have shaped opinion? Use that knowledge to produce ACCURATE, SPECIFIC scores — not generic averages.
+CRITICAL: Think carefully about ${query} specifically. What do you actually know about how the public perceives this entity/person? What controversies, praise, criticism, or events have shaped opinion? Use that knowledge to produce VERY VERY ACCURATE, SPECIFIC scores — not generic averages.
 
 Return ONLY a valid JSON object. No markdown, no preamble:
 
