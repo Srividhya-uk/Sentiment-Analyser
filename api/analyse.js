@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (serpKey) {
     try {
       const serpRes = await fetch(
-        `https://serpapi.com/search.json?q=${encodeURIComponent(query + ' public opinion news reputation')}&num=8&hl=en&gl=uk&api_key=${serpKey}`
+        `https://serpapi.com/search.json?q=${encodeURIComponent(query + ' about')}&num=8&hl=en&gl=uk&api_key=${serpKey}`
       );
       if (serpRes.ok) {
         const serpData = await serpRes.json();
